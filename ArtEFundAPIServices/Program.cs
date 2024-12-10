@@ -1,6 +1,11 @@
+using System.Reflection.Metadata;
 using System.Text;
+using ArtEFundAPIServices.Data.DatabaseContext;
+using ArtEFundAPIServices.DataAccess.User;
+using ArtEFundAPIServices.Helper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 
@@ -9,8 +14,14 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 
 builder.Services.AddLogging();
+builder.Services.AddScoped<IUserInterface, UserRepo>();
+builder.Services.AddSingleton<IPasswordHasher, PasswordHasher>();
+
+
 
 builder.Services.AddControllers(); // Add MVC services
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddAuthentication(options =>
@@ -29,7 +40,7 @@ builder.Services.AddAuthentication(options =>
         ValidAudience = builder.Configuration["Jwt:Audience"],
         IssuerSigningKey =
             new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(builder.Configuration["Jwt:SecretKey"] ?? "DefaultSecretKeySatan"))
+                Encoding.UTF8.GetBytes(builder.Configuration["Jwt:SecretKey"] ?? Constants.DEFAULT_JWT_SECRET))
     };
     options.Events = new JwtBearerEvents
     {
@@ -49,10 +60,6 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
-builder.Services.AddAuthorization(options =>
-{
-    options.AddPolicy("AdminPolicy", policy => policy.RequireClaim("Admin", "true"));
-});
 
 builder.Services.AddSwaggerGen(x =>
 {
@@ -80,11 +87,10 @@ builder.Services.AddSwaggerGen(x =>
 });
 
 var myAllowSpecificOrigins = "_myAllowSpecificOrigins";
-
 builder.Services.AddCors(options =>
 {
     options.AddPolicy(myAllowSpecificOrigins,
-        policy => { policy.WithOrigins("http://localhost:5173f").AllowAnyHeader().AllowAnyMethod(); });
+        policy => { policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod(); });
 });
 
 

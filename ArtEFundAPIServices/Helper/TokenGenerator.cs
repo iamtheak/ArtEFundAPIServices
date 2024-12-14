@@ -1,4 +1,5 @@
-﻿using Microsoft.IdentityModel.JsonWebTokens;
+﻿using System.Security.Cryptography;
+using Microsoft.IdentityModel.JsonWebTokens;
 
 namespace ArtEFundAPIServices.Helper;
 using System.IdentityModel.Tokens.Jwt;
@@ -6,7 +7,7 @@ using System.Security.Claims;
 using System.Text;
 using Microsoft.IdentityModel.Tokens;
 
-public static class TokenHelper
+public static class TokenGenerator
 {
     public static string GenerateToken(int userId,string key,string issuer,string audience)
     {
@@ -39,5 +40,10 @@ public static class TokenHelper
             Console.WriteLine("The error is"+ e);
             return "Error";
         }
+    }
+
+    public static string GenerateRefreshToken()
+    {
+        return Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
     }
 }

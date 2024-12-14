@@ -12,6 +12,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<UserModel> Users { get; set; }
     public DbSet<RoleModel> Roles { get; set; }
     public DbSet<UserRole> UserRoles { get; set; }
+    public DbSet<RefreshTokenModel> RefreshTokens { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -27,6 +28,12 @@ public class ApplicationDbContext : DbContext
             .HasOne(ur => ur.RoleModel)
             .WithMany(r => r.UserRoles)
             .HasForeignKey(ur => ur.RoleId);
+
+        modelBuilder.Entity<RefreshTokenModel>()
+            .HasOne(rtm => rtm.User)
+            .WithMany(u => u.RefreshTokens)
+            .HasForeignKey(rtm => rtm.UserId);
+
         
         // Add unique constraint for Username
         modelBuilder.Entity<UserModel>()
@@ -37,6 +44,7 @@ public class ApplicationDbContext : DbContext
         modelBuilder.Entity<UserModel>()
             .HasIndex(u => u.Email)
             .IsUnique();
+        
 
         // Seed initial roles
         modelBuilder.Entity<RoleModel>().HasData(

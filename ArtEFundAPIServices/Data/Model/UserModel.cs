@@ -35,4 +35,7 @@ public class UserModel
 
     // Navigation property for UserRoles
     public ICollection<UserRole> UserRoles { get; set; }
+    
+    // Navigation property for RefreshTokens
+    public ICollection<RefreshTokenModel> RefreshTokens { get; set; }
 }

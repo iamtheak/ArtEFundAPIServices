@@ -50,12 +50,19 @@ public class UserRepo : IUserInterface
         _context.Users.Add(user);
         await _context.SaveChangesAsync();
 
-        user.UserRoles = new List<UserRole>()
+        // Ensure RoleModel exists
+        var defaultRole = await _context.Roles.FirstOrDefaultAsync(r => r.RoleId == 2);
+        if (defaultRole == null)
         {
-            new UserRole()
+            throw new Exception("Role not found.");
+        }
+
+        user.UserRoles = new List<UserRole>
+        {
+            new UserRole
             {
-                RoleId = 2,
-                UserId = user.UserId,
+                RoleId = defaultRole.RoleId,
+                UserId = user.UserId
             }
         };
 
@@ -64,6 +71,7 @@ public class UserRepo : IUserInterface
 
         return user;
     }
+
 
     public async Task DeleteUser(int id)
     {

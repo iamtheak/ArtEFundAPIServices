@@ -21,4 +21,9 @@ public class UserCreateDto
     [Required(ErrorMessage = "Password is required")]
     [RegularExpression("^(?=.*[a-z])(?=.*[A-Z])(?=.*\\W).{8,}$", ErrorMessage = "Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, and one special character.")]    
     public string Password { get; set; }
+    
+    
+    [Required]
+    [Compare("Password", ErrorMessage = "Passwords do not match")]
+    public string ConfirmPassword { get; set; }
 }

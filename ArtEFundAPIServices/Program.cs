@@ -1,6 +1,7 @@
 using System.Reflection.Metadata;
 using System.Text;
 using ArtEFundAPIServices.Data.DatabaseContext;
+using ArtEFundAPIServices.DataAccess.RefreshToken;
 using ArtEFundAPIServices.DataAccess.User;
 using ArtEFundAPIServices.Helper;
 using Microsoft.EntityFrameworkCore;
@@ -15,50 +16,62 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddLogging();
 builder.Services.AddScoped<IUserInterface, UserRepo>();
+builder.Services.AddScoped<IRefreshTokenInterface, RefreshTokenRepo>();
+
 builder.Services.AddSingleton<IPasswordHasher, PasswordHasher>();
-
-
+builder.Services.AddHttpContextAccessor();
 
 builder.Services.AddControllers(); // Add MVC services
+
+builder.Services.AddRouting(config =>
+{
+    config.LowercaseUrls = true;
+});
+
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddAuthentication(options =>
-{
-    options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
-    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-}).AddJwtBearer(options =>
-{
-    options.TokenValidationParameters = new TokenValidationParameters()
     {
-        ValidateIssuer = true,
-        ValidateAudience = true,
-        ValidateLifetime = true,
-        ValidateIssuerSigningKey = true,
-        ValidIssuer = builder.Configuration["Jwt:Issuer"],
-        ValidAudience = builder.Configuration["Jwt:Audience"],
-        IssuerSigningKey =
-            new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(builder.Configuration["Jwt:SecretKey"] ?? Constants.DEFAULT_JWT_SECRET))
-    };
-    options.Events = new JwtBearerEvents
+        options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
+        options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    }).AddJwtBearer(options =>
     {
-        OnChallenge = context =>
+        options.TokenValidationParameters = new TokenValidationParameters()
         {
-            context.HandleResponse(); // Prevents the default response
-            
-            context.Response.StatusCode = 401;
-            context.Response.ContentType = "application/json";
-            var result = System.Text.Json.JsonSerializer.Serialize(new
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = builder.Configuration["Jwt:Issuer"],
+            ValidAudience = builder.Configuration["Jwt:Audience"],
+            IssuerSigningKey =
+                new SymmetricSecurityKey(
+                    Encoding.UTF8.GetBytes(builder.Configuration["Jwt:SecretKey"] ?? Constants.DEFAULT_JWT_SECRET))
+        };
+        options.Events = new JwtBearerEvents
+        {
+            OnChallenge = context =>
             {
-                error = "invalid_token",
-                error_description = "The token is invalid or has expired"
-            });
-            return context.Response.WriteAsync(result);
-        }
-    };
-});
+                context.HandleResponse(); // Prevents the default response
+
+                context.Response.StatusCode = 401;
+                context.Response.ContentType = "application/json";
+                var result = System.Text.Json.JsonSerializer.Serialize(new
+                {
+                    error = "invalid_token",
+                    error_description = "The token is invalid or has expired"
+                });
+                return context.Response.WriteAsync(result);
+            }
+        };
+    })
+    .AddGoogle(context =>
+    {
+        context.ClientId = builder.Configuration["Authentication:Google:ClientId"];
+        context.ClientSecret = builder.Configuration["Authentication:Google:ClientSecret"];
+    });
 
 
 builder.Services.AddSwaggerGen(x =>
@@ -90,7 +103,7 @@ var myAllowSpecificOrigins = "_myAllowSpecificOrigins";
 builder.Services.AddCors(options =>
 {
     options.AddPolicy(myAllowSpecificOrigins,
-        policy => { policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod(); });
+        policy => { policy.WithOrigins("http://localhost:3000","https://localhost:3000").AllowAnyHeader().AllowAnyMethod().AllowCredentials(); });
 });
 
 

@@ -34,8 +34,10 @@ public class UserModel
     public string UserName { get; set; } 
 
     // Navigation property for UserRoles
-    public ICollection<UserRole> UserRoles { get; set; }
+    public  int RoleId { get; set; }
     
+    [ForeignKey("RoleId")]
+    public RoleModel RoleModel { get; set; }
     // Navigation property for RefreshTokens
     public ICollection<RefreshTokenModel> RefreshTokens { get; set; }
 }

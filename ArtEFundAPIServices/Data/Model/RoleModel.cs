@@ -14,5 +14,4 @@ public class RoleModel
     public string RoleName { get; set; }
 
     // Navigation property for UserRoles
-    public ICollection<UserRole> UserRoles { get; set; }
 }

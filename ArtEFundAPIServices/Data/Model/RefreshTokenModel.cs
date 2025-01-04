@@ -16,6 +16,4 @@ public class RefreshTokenModel
     public bool IsRevoked { get; set; }
     public int UserId { get; set; }
     
-    //Navigation Property
-    public UserModel User { get; set; }
 }

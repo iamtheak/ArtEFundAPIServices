@@ -9,7 +9,7 @@ using Microsoft.IdentityModel.Tokens;
 
 public static class TokenGenerator
 {
-    public static string GenerateToken(int userId,string key,string issuer,string audience)
+    public static string GenerateToken(int userId,string key,string issuer,string audience,string role)
     {
         try
         {

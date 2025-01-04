@@ -11,7 +11,6 @@ public class ApplicationDbContext : DbContext
 
     public DbSet<UserModel> Users { get; set; }
     public DbSet<RoleModel> Roles { get; set; }
-    public DbSet<UserRole> UserRoles { get; set; }
     public DbSet<RefreshTokenModel> RefreshTokens { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -19,21 +18,10 @@ public class ApplicationDbContext : DbContext
         base.OnModelCreating(modelBuilder);
 
         // Configure relationships
-        modelBuilder.Entity<UserRole>()
-            .HasOne(ur => ur.UserModel)
-            .WithMany(u => u.UserRoles)
-            .HasForeignKey(ur => ur.UserId);
-
-        modelBuilder.Entity<UserRole>()
-            .HasOne(ur => ur.RoleModel)
-            .WithMany(r => r.UserRoles)
-            .HasForeignKey(ur => ur.RoleId);
-
-        modelBuilder.Entity<RefreshTokenModel>()
-            .HasOne(rtm => rtm.User)
-            .WithMany(u => u.RefreshTokens)
-            .HasForeignKey(rtm => rtm.UserId);
-
+        modelBuilder.Entity<UserModel>()
+            .HasOne(u => u.RoleModel)
+            .WithMany()
+            .HasForeignKey(u => u.RoleId);
         
         // Add unique constraint for Username
         modelBuilder.Entity<UserModel>()

@@ -6,7 +6,6 @@ using ArtEFundAPIServices.DataAccess.User;
 using ArtEFundAPIServices.Helper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 
@@ -58,11 +57,27 @@ builder.Services.AddAuthentication(options =>
 
                 context.Response.StatusCode = 401;
                 context.Response.ContentType = "application/json";
-                var result = System.Text.Json.JsonSerializer.Serialize(new
+                
+                
+                
+                var result = string.Empty;
+
+                if (string.IsNullOrEmpty(context.Request.Headers["Authorization"]))
                 {
-                    error = "invalid_token",
-                    error_description = "The token is invalid or has expired"
-                });
+                    result = System.Text.Json.JsonSerializer.Serialize(new
+                    {
+                        error = "no_token",
+                        errorDescription = "No token provided"
+                    });
+                }
+                else
+                {
+                    result = System.Text.Json.JsonSerializer.Serialize(new
+                    {
+                        error = "invalid_token",
+                        errorDescription = "The token is invalid or has expired"
+                    });
+                }
                 return context.Response.WriteAsync(result);
             }
         };
@@ -116,7 +131,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
+// app.UseHttpsRedirection();
 
 app.UseCors(myAllowSpecificOrigins);
 

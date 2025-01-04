@@ -43,9 +43,12 @@ namespace ArtEFundAPIServices.Data.DbMigrations
                     b.Property<int>("UserId")
                         .HasColumnType("int");
 
+                    b.Property<int?>("UserModelUserId")
+                        .HasColumnType("int");
+
                     b.HasKey("RefreshTokenId");
 
-                    b.HasIndex("UserId");
+                    b.HasIndex("UserModelUserId");
 
                     b.ToTable("RefreshTokens");
                 });
@@ -113,6 +116,9 @@ namespace ArtEFundAPIServices.Data.DbMigrations
                         .HasMaxLength(255)
                         .HasColumnType("nvarchar(255)");
 
+                    b.Property<int>("RoleId")
+                        .HasColumnType("int");
+
                     b.Property<string>("UserName")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -123,75 +129,35 @@ namespace ArtEFundAPIServices.Data.DbMigrations
                     b.HasIndex("Email")
                         .IsUnique();
 
+                    b.HasIndex("RoleId");
+
                     b.HasIndex("UserName")
                         .IsUnique();
 
                     b.ToTable("Users");
                 });
 
-            modelBuilder.Entity("ArtEFundAPIServices.Data.Model.UserRole", b =>
-                {
-                    b.Property<int>("UserRoleId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("UserRoleId"));
-
-                    b.Property<int>("RoleId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("UserId")
-                        .HasColumnType("int");
-
-                    b.HasKey("UserRoleId");
-
-                    b.HasIndex("RoleId");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("UserRoles");
-                });
-
             modelBuilder.Entity("ArtEFundAPIServices.Data.Model.RefreshTokenModel", b =>
                 {
-                    b.HasOne("ArtEFundAPIServices.Data.Model.UserModel", "User")
+                    b.HasOne("ArtEFundAPIServices.Data.Model.UserModel", null)
                         .WithMany("RefreshTokens")
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("User");
+                        .HasForeignKey("UserModelUserId");
                 });
 
-            modelBuilder.Entity("ArtEFundAPIServices.Data.Model.UserRole", b =>
+            modelBuilder.Entity("ArtEFundAPIServices.Data.Model.UserModel", b =>
                 {
                     b.HasOne("ArtEFundAPIServices.Data.Model.RoleModel", "RoleModel")
-                        .WithMany("UserRoles")
+                        .WithMany()
                         .HasForeignKey("RoleId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("ArtEFundAPIServices.Data.Model.UserModel", "UserModel")
-                        .WithMany("UserRoles")
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
                     b.Navigation("RoleModel");
-
-                    b.Navigation("UserModel");
-                });
-
-            modelBuilder.Entity("ArtEFundAPIServices.Data.Model.RoleModel", b =>
-                {
-                    b.Navigation("UserRoles");
                 });
 
             modelBuilder.Entity("ArtEFundAPIServices.Data.Model.UserModel", b =>
                 {
                     b.Navigation("RefreshTokens");
-
-                    b.Navigation("UserRoles");
                 });
 #pragma warning restore 612, 618
         }

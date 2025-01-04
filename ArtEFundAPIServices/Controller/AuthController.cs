@@ -1,15 +1,14 @@
-﻿using System.Security.Claims;
-using ArtEFundAPIServices.Data.Model;
+﻿using ArtEFundAPIServices.Data.Model;
 using ArtEFundAPIServices.DataAccess.RefreshToken;
 using ArtEFundAPIServices.DataAccess.User;
 using ArtEFundAPIServices.DTO;
 using ArtEFundAPIServices.DTO.Auth;
 using ArtEFundAPIServices.Helper;
 using ArtEFundAPIServices.Mapper;
-using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Mvc;
 using Exception = System.Exception;
+using Google.Apis.Auth;
+
 
 namespace ArtEFundAPIServices.Controller;
 
@@ -33,7 +32,7 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost]
-    public async Task<IActionResult> Login([FromBody] LoginDto loginDto )
+    public async Task<IActionResult> Login([FromBody] LoginDto loginDto)
     {
         try
         {
@@ -51,7 +50,7 @@ public class AuthController : ControllerBase
 
             var accessToken = TokenGenerator.GenerateToken(userModel.UserId,
                 _configuration["Jwt:SecretKey"] ?? Constants.DEFAULT_JWT_SECRET, _configuration["Jwt:Issuer"],
-                _configuration["Jwt:Audience"]);
+                _configuration["Jwt:Audience"], userModel.RoleModel.RoleName);
 
             var userViewDto = UserMapper.ToUserViewDto(userModel);
             RefreshTokenModel refreshToken = new RefreshTokenModel()
@@ -61,23 +60,19 @@ public class AuthController : ControllerBase
                 Expires = DateTime.Now.AddDays(7),
                 IsRevoked = false
             };
+
+            await _refreshTokenInterface.AddRefreshToken(refreshToken);
             var cookieOptions = new CookieOptions
             {
                 HttpOnly = true,
-                Secure = true, // Use only in HTTPS
+                Secure = true,
                 SameSite = SameSiteMode.None,
                 Expires = refreshToken.Expires
             };
-            
-            
 
-            // For local development, you might need to adjust SameSite
             Response.Cookies.Append("refreshToken", refreshToken.Token, cookieOptions);
 
-
-            await _refreshTokenInterface.AddRefreshToken(refreshToken);
-
-            return Ok(new { accessToken, message = "Login successful" ,user = userViewDto});
+            return Ok(new { accessToken, message = "Login successful", user = userViewDto , refreshToken = refreshToken.Token});
         }
         catch (Exception ex)
         {
@@ -135,11 +130,11 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost]
-    public async Task<IActionResult> Refresh()
+    public async Task<IActionResult> Refresh([FromBody ]string token )
     {
         try
         {
-            var token = Request.Cookies["refreshToken"];
+          
             if (string.IsNullOrEmpty(token))
             {
                 return BadRequest("Refresh token is missing");
@@ -186,7 +181,7 @@ public class AuthController : ControllerBase
 
             var accessToken = TokenGenerator.GenerateToken(user.UserId,
                 _configuration["Jwt:SecretKey"] ?? Constants.DEFAULT_JWT_SECRET, _configuration["Jwt:Issuer"],
-                _configuration["Jwt:Audience"]);
+                _configuration["Jwt:Audience"], user.RoleModel.RoleName);
 
             var cookieOptions = new CookieOptions
             {
@@ -198,7 +193,7 @@ public class AuthController : ControllerBase
 
             Response.Cookies.Append("refreshToken", newRefreshToken, cookieOptions);
 
-            return Ok(new { accessToken });
+            return Ok(new { accessToken, refreshToken = newRefreshToken });
         }
         catch (Exception ex)
         {
@@ -206,25 +201,71 @@ public class AuthController : ControllerBase
         }
     }
 
-    [HttpGet]
-    public async Task<IActionResult> GoogleCallback()
+
+    [HttpPost]
+    [Route("/api/auth/google-login")]
+    public async Task<IActionResult> VerifyGoogleLoginToken([FromBody] string token)
     {
-        var result = await HttpContext.AuthenticateAsync(GoogleDefaults.AuthenticationScheme);
-        if (result.Succeeded)
+        try
         {
-            // Access user information from result.Principal
-            var email = result.Principal.FindFirstValue(ClaimTypes.Email);
-            var name = result.Principal.FindFirstValue(ClaimTypes.Name);
+            var payload = await GoogleJsonWebSignature.ValidateAsync(token);
+            if (payload == null)
+            {
+                return BadRequest("Invalid Google token");
+            }
 
-            // Generate a JWT token or other authentication token
-            var token = TokenGenerator.GenerateToken(1, _configuration["Jwt:SecretKey"] ?? Constants.DEFAULT_JWT_SECRET,
-                _configuration["Jwt:Issuer"], _configuration["Jwt:Audience"]);
+            // Access user information from payload
+            var email = payload.Email;
+            var firstName = payload.GivenName;
+            var lastName = payload.FamilyName;
 
-            return Ok(new { token });
+            // Check if user exists in the database
+            var user = await _userInterface.GetUserByEmail(email);
+            if (user == null)
+            {
+                // Create a new user if not exists
+                user = new UserModel
+                {
+                    Email = email,
+                    UserName = string.Concat(firstName, "_", lastName),
+                    FirstName = firstName,
+                    LastName = lastName,
+                    PasswordHash = _passwordHasher.HashPassword(Guid.NewGuid().ToString())
+                    // Set other properties as needed
+                };
+                user = await _userInterface.AddUser(user);
+                
+            }
+
+            // Generate tokens
+            var accessToken = TokenGenerator.GenerateToken(user.UserId, _configuration["Jwt:SecretKey"], _configuration["Jwt:Issuer"], _configuration["Jwt:Audience"], user.RoleModel.RoleName);
+            var refreshToken = TokenGenerator.GenerateRefreshToken();
+
+            var refreshTokenModel = new RefreshTokenModel
+            {
+                UserId = user.UserId,
+                Token = refreshToken,
+                Expires = DateTime.Now.AddDays(7),
+                IsRevoked = false
+            };
+            await _refreshTokenInterface.AddRefreshToken(refreshTokenModel);
+
+            var cookieOptions = new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = true,
+                SameSite = SameSiteMode.None,
+                Expires = refreshTokenModel.Expires
+            };
+
+            Response.Cookies.Append("refreshToken", refreshToken, cookieOptions);
+
+            return Ok(new { accessToken, refreshToken });
         }
-        else
+        catch (Exception ex)
         {
-            return BadRequest();
+            return BadRequest(ex.Message);
         }
     }
+    
 }

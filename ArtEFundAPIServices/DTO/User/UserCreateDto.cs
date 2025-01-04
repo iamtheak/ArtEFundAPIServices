@@ -6,12 +6,15 @@ public class UserCreateDto
 {
     
     [Required(ErrorMessage = "First Name is required")]
+    [MinLength(3, ErrorMessage = "First Name must be at least 3 characters long")]
     public string FirstName { get; set; }
     
     [Required(ErrorMessage = "Last Name is required")]
+    [MinLength(3, ErrorMessage = "Last Name must be at least 3 characters long")]
     public string LastName { get; set; }
     
     [Required(ErrorMessage = "Username is required")]
+    [MinLength(3, ErrorMessage = "Username must be at least 3 characters long")]
     public string UserName { get; set; }
     
     [Required(ErrorMessage = "Email is required")]

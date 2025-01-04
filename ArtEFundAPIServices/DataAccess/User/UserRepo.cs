@@ -15,61 +15,59 @@ public class UserRepo : IUserInterface
 
     public async Task<List<UserModel>> GetAllUsers()
     {
-        return await _context.Users
-            .Include(u => u.UserRoles)
-            .ThenInclude(ur => ur.RoleModel)
-            .ToListAsync();
+        return await _context.Users.Include(u => u.RoleModel).ToListAsync();
     }
 
     public async Task<UserModel?> GetUserById(int id)
     {
         return await _context.Users
-            .Include(u => u.UserRoles)
-            .ThenInclude(ur => ur.RoleModel)
+            .Include(u => u.RoleModel)
             .SingleOrDefaultAsync(u => u.UserId == id);
     }
 
     public async Task<UserModel?> GetUserByEmail(string email)
     {
         return await _context.Users
-            .Include(u => u.UserRoles)
-            .ThenInclude(ur => ur.RoleModel)
+            .Include(u => u.RoleModel)
             .SingleOrDefaultAsync(u => u.Email == email);
     }
 
     public async Task<UserModel?> GetUserByUserName(string userName)
     {
         return await _context.Users
-            .Include(u => u.UserRoles)
-            .ThenInclude(ur => ur.RoleModel)
+            .Include(u => u.RoleModel)
             .SingleOrDefaultAsync(u => u.UserName == userName);
     }
 
     public async Task<UserModel> AddUser(UserModel user)
     {
-        _context.Users.Add(user);
-        await _context.SaveChangesAsync();
+        
+        _context.Database.BeginTransaction();
 
-        // Ensure RoleModel exists
-        var defaultRole = await _context.Roles.FirstOrDefaultAsync(r => r.RoleId == 2);
-        if (defaultRole == null)
+        try
         {
-            throw new Exception("Role not found.");
-        }
-
-        user.UserRoles = new List<UserRole>
-        {
-            new UserRole
+            // Ensure RoleModel exists
+            var defaultRole = await _context.Roles.FirstOrDefaultAsync(r => r.RoleId == 2);
+            if (defaultRole == null)
             {
-                RoleId = defaultRole.RoleId,
-                UserId = user.UserId
+                await _context.Database.RollbackTransactionAsync();
+                throw new Exception("Role not found.");
             }
-        };
-
-        _context.Users.Update(user);
-        await _context.SaveChangesAsync();
-
-        return user;
+            
+            user.RoleId = defaultRole.RoleId;
+            
+            _context.Users.Add(user);
+            await _context.SaveChangesAsync();
+        
+            await _context.Database.CommitTransactionAsync();
+            return user;
+        }
+        catch (Exception e)
+        {
+            await _context.Database.RollbackTransactionAsync();
+            throw new Exception("Error adding user.");
+        }
+        
     }
 
 

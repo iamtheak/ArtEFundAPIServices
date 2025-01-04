@@ -38,7 +38,7 @@ public static class UserMapper
             Email = userModel.Email,
             FirstName = userModel.FirstName,
             LastName = userModel.LastName,
-            Roles = userModel.UserRoles.Any() ? userModel.UserRoles.Select(x => x.RoleModel.RoleName).ToArray() : []
+            Role = userModel.RoleModel.RoleName
         };
     }
 }

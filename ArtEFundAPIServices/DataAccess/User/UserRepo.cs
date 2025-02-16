@@ -22,6 +22,7 @@ public class UserRepo : IUserInterface
     {
         return await _context.Users
             .Include(u => u.RoleModel)
+            .Include(u => u.UserType)
             .SingleOrDefaultAsync(u => u.UserId == id);
     }
 
@@ -39,37 +40,42 @@ public class UserRepo : IUserInterface
             .SingleOrDefaultAsync(u => u.UserName == userName);
     }
 
-    public async Task<UserModel> AddUser(UserModel user)
+    public async Task<UserModel> AddUser(UserModel user, int userTypeId)
     {
-        
-        _context.Database.BeginTransaction();
-
+        using var transaction = await _context.Database.BeginTransactionAsync();
         try
         {
-            // Ensure RoleModel exists
-            var defaultRole = await _context.Roles.FirstOrDefaultAsync(r => r.RoleId == 2);
+            var roleTask = _context.Roles
+                .FirstOrDefaultAsync(r => r.RoleId == 2);
+            var userTypeTask = _context.UserTypes
+                .FirstOrDefaultAsync(u => u.UserTypeId == userTypeId);
+
+            await Task.WhenAll(roleTask, userTypeTask);
+
+            var defaultRole = await roleTask;
+            var defaultUserType = await userTypeTask;
+
             if (defaultRole == null)
-            {
-                await _context.Database.RollbackTransactionAsync();
-                throw new Exception("Role not found.");
-            }
-            
+                throw new Exception("Role not found");
+
+            if (defaultUserType == null)
+                throw new Exception($"User type with id {userTypeId} not found");
+
             user.RoleId = defaultRole.RoleId;
-            
+            user.UserTypeId = defaultUserType.UserTypeId;
+
             _context.Users.Add(user);
             await _context.SaveChangesAsync();
-        
-            await _context.Database.CommitTransactionAsync();
+            await transaction.CommitAsync();
+
             return user;
         }
-        catch (Exception e)
+        catch (Exception ex)
         {
-            await _context.Database.RollbackTransactionAsync();
-            throw new Exception("Error adding user.");
+            await transaction.RollbackAsync();
+            throw new Exception("Failed to create user");
         }
-        
     }
-
 
     public async Task DeleteUser(int id)
     {
@@ -85,5 +91,20 @@ public class UserRepo : IUserInterface
     {
         _context.Users.Update(user);
         await _context.SaveChangesAsync();
+    }
+
+    public async Task<List<UserType>> GetUserTypes()
+    {
+        return await _context.UserTypes.ToListAsync();
+    }
+
+    public async Task<List<RoleModel>> GetRoles()
+    {
+        return await _context.Roles.ToListAsync();
+    }
+
+    public async Task<RoleModel?> GetRoleById(int id)
+    {
+        return await _context.Roles.FindAsync(id);
     }
 }

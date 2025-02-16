@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace ArtEFundAPIServices.Data.Model;
 
-public class UserRole
+public class UserRoleModel
 {
     [Key]
     [DatabaseGenerated(DatabaseGeneratedOption.Identity)]

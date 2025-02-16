@@ -1,11 +1,13 @@
-using System.Reflection.Metadata;
 using System.Text;
+using System.Text.Json;
 using ArtEFundAPIServices.Data.DatabaseContext;
+using ArtEFundAPIServices.DataAccess.ContentType;
+using ArtEFundAPIServices.DataAccess.Creator;
 using ArtEFundAPIServices.DataAccess.RefreshToken;
 using ArtEFundAPIServices.DataAccess.User;
 using ArtEFundAPIServices.Helper;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 
@@ -16,16 +18,15 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddLogging();
 builder.Services.AddScoped<IUserInterface, UserRepo>();
 builder.Services.AddScoped<IRefreshTokenInterface, RefreshTokenRepo>();
+builder.Services.AddScoped<IContentTypeInterface, ContentTypeRepo>();
+builder.Services.AddScoped<ICreatorInterface, CreatorRepo>();
 
 builder.Services.AddSingleton<IPasswordHasher, PasswordHasher>();
 builder.Services.AddHttpContextAccessor();
 
 builder.Services.AddControllers(); // Add MVC services
 
-builder.Services.AddRouting(config =>
-{
-    config.LowercaseUrls = true;
-});
+builder.Services.AddRouting(config => { config.LowercaseUrls = true; });
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
@@ -57,14 +58,13 @@ builder.Services.AddAuthentication(options =>
 
                 context.Response.StatusCode = 401;
                 context.Response.ContentType = "application/json";
-                
-                
-                
+
+
                 var result = string.Empty;
 
                 if (string.IsNullOrEmpty(context.Request.Headers["Authorization"]))
                 {
-                    result = System.Text.Json.JsonSerializer.Serialize(new
+                    result = JsonSerializer.Serialize(new
                     {
                         error = "no_token",
                         errorDescription = "No token provided"
@@ -72,12 +72,13 @@ builder.Services.AddAuthentication(options =>
                 }
                 else
                 {
-                    result = System.Text.Json.JsonSerializer.Serialize(new
+                    result = JsonSerializer.Serialize(new
                     {
                         error = "invalid_token",
                         errorDescription = "The token is invalid or has expired"
                     });
                 }
+
                 return context.Response.WriteAsync(result);
             }
         };
@@ -118,7 +119,11 @@ var myAllowSpecificOrigins = "_myAllowSpecificOrigins";
 builder.Services.AddCors(options =>
 {
     options.AddPolicy(myAllowSpecificOrigins,
-        policy => { policy.WithOrigins("http://localhost:3000","https://localhost:3000").AllowAnyHeader().AllowAnyMethod().AllowCredentials(); });
+        policy =>
+        {
+            policy.WithOrigins("http://localhost:3000", "https://localhost:3000").AllowAnyHeader().AllowAnyMethod()
+                .AllowCredentials();
+        });
 });
 
 

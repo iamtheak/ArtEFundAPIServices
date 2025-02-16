@@ -1,6 +1,5 @@
 ﻿using System.Security.Cryptography;
 using Microsoft.IdentityModel.JsonWebTokens;
-
 namespace ArtEFundAPIServices.Helper;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -9,7 +8,7 @@ using Microsoft.IdentityModel.Tokens;
 
 public static class TokenGenerator
 {
-    public static string GenerateToken(int userId,string key,string issuer,string audience,string role)
+    public static (string token, DateTime expires ) GenerateToken(int userId,string key,string issuer,string audience,string role)
     {
         try
         {
@@ -17,7 +16,7 @@ public static class TokenGenerator
             {
                 new(JwtRegisteredClaimNames.Sub, userId.ToString()),
                 new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-                new(ClaimTypes.Role,"admin")
+                new(ClaimTypes.Role,role)
             };
 
             var tokenDescriptor = new SecurityTokenDescriptor
@@ -32,13 +31,12 @@ public static class TokenGenerator
 
             var tokenHandler = new JsonWebTokenHandler();
             var token = tokenHandler.CreateToken(tokenDescriptor);
-            return token;
+            return ( token, tokenDescriptor.Expires.Value );
 
         }
         catch(Exception e)
         {
-            Console.WriteLine("The error is"+ e);
-            return "Error";
+            return ("",DateTime.MinValue);
         }
     }
 

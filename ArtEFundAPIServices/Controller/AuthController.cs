@@ -3,12 +3,12 @@ using ArtEFundAPIServices.DataAccess.RefreshToken;
 using ArtEFundAPIServices.DataAccess.User;
 using ArtEFundAPIServices.DTO;
 using ArtEFundAPIServices.DTO.Auth;
+using ArtEFundAPIServices.DTO.User;
 using ArtEFundAPIServices.Helper;
 using ArtEFundAPIServices.Mapper;
 using Microsoft.AspNetCore.Mvc;
 using Exception = System.Exception;
 using Google.Apis.Auth;
-
 
 namespace ArtEFundAPIServices.Controller;
 
@@ -72,7 +72,15 @@ public class AuthController : ControllerBase
 
             Response.Cookies.Append("refreshToken", refreshToken.Token, cookieOptions);
 
-            return Ok(new { accessToken, message = "Login successful", user = userViewDto , refreshToken = refreshToken.Token});
+            return Ok(new
+            {
+                accessToken = accessToken.token,
+                accessTokenExpires = accessToken.expires,
+                message = "Login successful",
+                user = userViewDto,
+                refreshToken = refreshToken.Token,
+                refreshTokenExpires = refreshToken.Expires
+            });
         }
         catch (Exception ex)
         {
@@ -111,7 +119,14 @@ public class AuthController : ControllerBase
                 LastName = userDto.LastName,
                 PasswordHash = _passwordHasher.HashPassword(userDto.Password)
             };
-            UserModel newUser = await _userInterface.AddUser(user);
+
+
+            List<UserType> userTypes = await _userInterface.GetUserTypes();
+
+            int userTypeId = userTypes.FirstOrDefault(u => u.UserTypeName == "credentials")?.UserTypeId ??
+                             Constants.DEFAULT_USER_TYPE_ID;
+
+            UserModel newUser = await _userInterface.AddUser(user, userTypeId);
 
             UserViewDto userViewDto = UserMapper.ToUserViewDto(newUser);
 
@@ -130,11 +145,10 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost]
-    public async Task<IActionResult> Refresh([FromBody ]string token )
+    public async Task<IActionResult> Refresh([FromBody] string token)
     {
         try
         {
-          
             if (string.IsNullOrEmpty(token))
             {
                 return BadRequest("Refresh token is missing");
@@ -193,7 +207,11 @@ public class AuthController : ControllerBase
 
             Response.Cookies.Append("refreshToken", newRefreshToken, cookieOptions);
 
-            return Ok(new { accessToken, refreshToken = newRefreshToken });
+            return Ok(new
+            {
+                accessToken = accessToken.token, accessTokenExpires = accessToken.expires,
+                refreshToken = newRefreshToken, refreshTokenExpires = newRefreshTokenModel.Expires
+            });
         }
         catch (Exception ex)
         {
@@ -219,26 +237,33 @@ public class AuthController : ControllerBase
             var firstName = payload.GivenName;
             var lastName = payload.FamilyName;
 
+
             // Check if user exists in the database
             var user = await _userInterface.GetUserByEmail(email);
+
+            List<UserType> userTypes = await _userInterface.GetUserTypes();
+
+            int userTypeId = userTypes.FirstOrDefault(u => u.UserTypeName == "google")?.UserTypeId ??
+                             Constants.DEFAULT_USER_TYPE_ID;
+
             if (user == null)
             {
                 // Create a new user if not exists
                 user = new UserModel
                 {
                     Email = email,
-                    UserName = string.Concat(firstName, "_", lastName),
+                    UserName = email,
                     FirstName = firstName,
                     LastName = lastName,
-                    PasswordHash = _passwordHasher.HashPassword(Guid.NewGuid().ToString())
+                    PasswordHash = ""
                     // Set other properties as needed
                 };
-                user = await _userInterface.AddUser(user);
-                
+                user = await _userInterface.AddUser(user, userTypeId);
             }
 
             // Generate tokens
-            var accessToken = TokenGenerator.GenerateToken(user.UserId, _configuration["Jwt:SecretKey"], _configuration["Jwt:Issuer"], _configuration["Jwt:Audience"], user.RoleModel.RoleName);
+            var accessToken = TokenGenerator.GenerateToken(user.UserId, _configuration["Jwt:SecretKey"],
+                _configuration["Jwt:Issuer"], _configuration["Jwt:Audience"], user.RoleModel.RoleName);
             var refreshToken = TokenGenerator.GenerateRefreshToken();
 
             var refreshTokenModel = new RefreshTokenModel
@@ -258,14 +283,19 @@ public class AuthController : ControllerBase
                 Expires = refreshTokenModel.Expires
             };
 
+            var userViewDto = UserMapper.ToUserViewDto(user);
+
             Response.Cookies.Append("refreshToken", refreshToken, cookieOptions);
 
-            return Ok(new { accessToken, refreshToken });
+            return Ok(new
+            {
+                accessToken = accessToken.token, accessTokenExpires = accessToken.expires, refreshToken,
+                refreshTokenExpires = refreshTokenModel.Expires, user = userViewDto
+            });
         }
         catch (Exception ex)
         {
             return BadRequest(ex.Message);
         }
     }
-    
 }

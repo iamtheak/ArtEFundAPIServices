@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace ArtEFundAPIServices.DTO.Auth;
+namespace ArtEFundAPIServices.DTO.User;
 
 public class UserViewDto
 {
@@ -16,4 +16,6 @@ public class UserViewDto
     public string Email { get; set; }
     
     public string Role { get; set; }
+    
+    public string? ProfilePicture { get; set; }
 }

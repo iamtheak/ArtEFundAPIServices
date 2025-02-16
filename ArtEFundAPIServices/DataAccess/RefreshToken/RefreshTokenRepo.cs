@@ -25,7 +25,7 @@ public class RefreshTokenRepo : IRefreshTokenInterface
         _context.RefreshTokens.RemoveRange(tokens);
         await _context.SaveChangesAsync();
     }
-    
+
     public async Task DeleteRefreshToken(string token)
     {
         var refreshToken = await _context.RefreshTokens.FirstOrDefaultAsync(rt => rt.Token == token);
@@ -54,22 +54,25 @@ public class RefreshTokenRepo : IRefreshTokenInterface
         {
             token.IsRevoked = true;
         }
+
         _context.RefreshTokens.UpdateRange(tokens);
         await _context.SaveChangesAsync();
     }
-    
+
     public async Task<RefreshTokenModel?> GetRefreshToken(string token)
     {
         return await _context.RefreshTokens.FirstOrDefaultAsync(rt => rt.Token == token);
     }
-    
+
     public async Task<UserModel?> GetUserFromRefreshToken(string token)
     {
         var refreshToken = await _context.RefreshTokens.FirstOrDefaultAsync(rt => rt.Token == token);
         if (refreshToken != null)
         {
-            return await _context.Users.FirstOrDefaultAsync(u => u.UserId == refreshToken.UserId);
+            return await _context.Users.Include(u => u.RoleModel)
+                .FirstOrDefaultAsync(u => u.UserId == refreshToken.UserId);
         }
+
         return null;
     }
 }

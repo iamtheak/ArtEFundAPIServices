@@ -8,7 +8,10 @@ public interface IUserInterface
     Task<UserModel?> GetUserById(int id);
     Task<UserModel?> GetUserByEmail(string email);
     Task<UserModel?> GetUserByUserName(string userName);
-    Task<UserModel> AddUser(UserModel user);
+    Task<UserModel> AddUser(UserModel user, int userTypeId);
     Task DeleteUser(int id);
     Task UpdateUser(UserModel user);
+    Task<List<UserType>> GetUserTypes();
+    Task<List<RoleModel>> GetRoles();
+    Task<RoleModel?> GetRoleById(int id);
 }

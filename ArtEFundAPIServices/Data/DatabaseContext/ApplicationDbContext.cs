@@ -9,8 +9,29 @@ public class ApplicationDbContext : DbContext
     {
     }
 
+    /*
+     *
+     *  Added Users, Roles, Creators, Donations, Follows, Memberships, UserTypes, ContentTypes, Goals, RefreshTokens
+     *
+     * TODO: Add DbSet for Post
+     * TODO: Add Likes to Post
+     * TODO: Add comments to Post
+     *
+     */
     public DbSet<UserModel> Users { get; set; }
     public DbSet<RoleModel> Roles { get; set; }
+
+    public DbSet<CreatorModel> Creators { get; set; }
+
+    public DbSet<DonationModel> Donations { get; set; }
+
+    public DbSet<FollowModel> Follows { get; set; }
+
+    public DbSet<MembershipModel> Memberships { get; set; }
+    public DbSet<UserType> UserTypes { get; set; }
+    public DbSet<ContentTypeModel> ContentTypes { get; set; }
+
+    public DbSet<GoalModel> Goals { get; set; }
     public DbSet<RefreshTokenModel> RefreshTokens { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -22,7 +43,7 @@ public class ApplicationDbContext : DbContext
             .HasOne(u => u.RoleModel)
             .WithMany()
             .HasForeignKey(u => u.RoleId);
-        
+
         // Add unique constraint for Username
         modelBuilder.Entity<UserModel>()
             .HasIndex(u => u.UserName)
@@ -32,17 +53,93 @@ public class ApplicationDbContext : DbContext
         modelBuilder.Entity<UserModel>()
             .HasIndex(u => u.Email)
             .IsUnique();
-        
 
-        // Seed initial roles
+        modelBuilder.Entity<UserModel>()
+            .HasOne(u => u.UserType)
+            .WithOne()
+            .HasForeignKey<UserModel>(u => u.UserTypeId);
+
+        modelBuilder.Entity<CreatorModel>()
+            .HasOne(cm => cm.UserModel)
+            .WithOne()
+            .OnDelete(DeleteBehavior.NoAction)
+            .HasForeignKey<CreatorModel>(cm => cm.UserId);
+
+        modelBuilder.Entity<CreatorModel>()
+            .HasMany(cm => cm.Memberships)
+            .WithOne()
+            .OnDelete(DeleteBehavior.NoAction)
+            .HasForeignKey(m => m.CreatorId);
+
+        modelBuilder.Entity<CreatorModel>()
+            .HasOne(cm => cm.ContentType)
+            .WithOne()
+            .OnDelete(DeleteBehavior.NoAction)
+            .HasForeignKey<CreatorModel>(cm => cm.ContentTypeId);
+
+
+        modelBuilder.Entity<FollowModel>()
+            .HasKey(f => new { f.UserId, f.CreatorId });
+
+        modelBuilder.Entity<FollowModel>()
+            .HasOne(f => f.User) // User follows a Creator
+            .WithMany(u => u.Followings) // A User can follow multiple Creators
+            .OnDelete(DeleteBehavior.Cascade)
+            .HasForeignKey(f => f.UserId);
+
+        modelBuilder.Entity<FollowModel>()
+            .HasOne(f => f.Creator) // A Creator has multiple followers
+            .WithMany(c => c.Followers) // A Creator can be followed by many Users
+            .OnDelete(DeleteBehavior.Cascade)
+            .HasForeignKey(f => f.CreatorId);
+
+        modelBuilder.Entity<DonationModel>()
+            .HasOne(d => d.Creator)
+            .WithMany(c => c.Donations)
+            .OnDelete(DeleteBehavior.NoAction)
+            .HasForeignKey(d => d.CreatorId);
+
+
+        modelBuilder.Entity<MembershipModel>()
+            .HasOne(m => m.Creator)
+            .WithMany(cm => cm.Memberships)
+            .HasForeignKey(m => m.CreatorId)
+            .OnDelete(DeleteBehavior.Cascade)
+            .IsRequired();
+
+        modelBuilder.Entity<EnrolledMembershipModel>()
+            .HasKey(em => new { em.UserId, em.MembershipId });
+
+        modelBuilder.Entity<EnrolledMembershipModel>()
+            .HasOne(em => em.User)
+            .WithMany(u => u.EnrolledMemberships)
+            .HasForeignKey(em => em.UserId);
+
+        modelBuilder.Entity<EnrolledMembershipModel>()
+            .HasOne(em => em.MembershipModel)
+            .WithMany(m => m.EnrolledMemberships)
+            .HasForeignKey(em => em.MembershipId);
+
         modelBuilder.Entity<RoleModel>().HasData(
             new RoleModel { RoleId = 1, RoleName = "admin" },
             new RoleModel { RoleId = 2, RoleName = "user" },
-            new RoleModel { RoleId = 3, RoleName = "creator"}
+            new RoleModel { RoleId = 3, RoleName = "creator" }
         );
+
+        modelBuilder.Entity<UserType>().HasData(
+            new UserType { UserTypeId = 1, UserTypeName = "credentials" },
+            new UserType { UserTypeId = 2, UserTypeName = "google" }
+        );
+
+        modelBuilder.Entity<DonationModel>()
+            .Property(d => d.DonationAmount)
+            .HasPrecision(18, 2); // 18 digits total, 2 decimal places
+
+        modelBuilder.Entity<MembershipModel>()
+            .Property(m => m.MembershipAmount)
+            .HasPrecision(18, 2);
     }
 
-    // Ensure database is created if it doesn't exist
     public void EnsureDatabaseCreated()
     {
         Database.EnsureCreated();

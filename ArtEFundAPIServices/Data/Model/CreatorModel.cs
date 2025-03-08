@@ -14,9 +14,9 @@ public class CreatorModel
     [MaxLength(300)] public string? CreatorDescription { get; set; }
 
 
-    public string? CreatorBanner { get; set; }
+    public string? CreatorBanner { get; set; } = "";
 
-    public string? CreatorGoal { get; set; }
+    public string? CreatorGoal { get; set; } = "";
 
     [ForeignKey("ContentTypeId")] public int ContentTypeId { get; set; }
     [ForeignKey("UserId")] public int UserId { get; set; }
@@ -24,5 +24,6 @@ public class CreatorModel
     public ICollection<FollowModel> Followers { get; set; }
     public ICollection<DonationModel> Donations { get; set; }
     public ICollection<MembershipModel> Memberships { get; set; }
+    public ICollection<GoalModel> Goals { get; set; }
     public ContentTypeModel ContentType { get; set; }
 }

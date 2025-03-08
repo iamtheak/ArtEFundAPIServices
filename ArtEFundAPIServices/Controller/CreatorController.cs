@@ -32,6 +32,7 @@ public class CreatorController : ControllerBase
         }
         catch (Exception e)
         {
+            Console.Write(e);
             return StatusCode(500, new { message = "Internal server error", error = e.Message });
         }
     }
@@ -128,25 +129,21 @@ public class CreatorController : ControllerBase
 
             UserModel? userModel = await _userInterface.GetUserById(creatorDto.UserId);
 
-            
-            if(userModel == null)
+
+            if (userModel == null)
             {
                 return NotFound(new { message = $"User with ID {creatorDto.UserId} not found" });
             }
+
             var existingCreator = await _creatorInterface.GetCreatorByUserId(userModel.UserId);
 
             if (existingCreator != null)
             {
                 return BadRequest("Creator already exists for this user");
             }
-            
-            CreatorModel creatorModel = CreatorMapper.ToCreatorModel(creatorDto);
-            var creator = await _creatorInterface.CreateCreator(creatorModel);
 
-            if (userModel == null)
-            {
-                return NotFound(new { message = $"User with ID {creator.UserId} not found" });
-            }
+            CreatorModel? creatorModel = CreatorMapper.ToCreatorModel(creatorDto);
+            var creator = await _creatorInterface.CreateCreator(creatorModel);
 
             return CreatedAtAction(
                 nameof(GetCreatorById),
@@ -170,12 +167,22 @@ public class CreatorController : ControllerBase
                 return BadRequest(ModelState);
             }
 
-            CreatorModel creatorModel = CreatorMapper.ToCreatorModel(creatorDto);
-            var creator = await _creatorInterface.UpdateCreator(id, creatorModel);
-            if (creator == null)
+
+            CreatorModel? existingCreator = await _creatorInterface.GetCreatorById(id);
+
+            if (existingCreator == null)
             {
                 return NotFound(new { message = $"Creator with ID {id} not found" });
             }
+
+            existingCreator.CreatorBio = creatorDto.CreatorBio;
+            existingCreator.CreatorDescription = creatorDto.CreatorDescription;
+            existingCreator.CreatorBanner = creatorDto.CreatorBanner;
+            existingCreator.CreatorGoal = creatorDto.CreatorGoal;
+            existingCreator.ContentTypeId =
+                creatorDto.ContentTypeId > 0 ? creatorDto.ContentTypeId : existingCreator.ContentTypeId;
+
+            var creator = await _creatorInterface.UpdateCreator(existingCreator);
 
             return Ok(CreatorMapper.ToCreatorViewDto(creator));
         }

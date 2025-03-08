@@ -20,7 +20,6 @@ public class ApplicationDbContext : DbContext
      */
     public DbSet<UserModel> Users { get; set; }
     public DbSet<RoleModel> Roles { get; set; }
-
     public DbSet<CreatorModel> Creators { get; set; }
 
     public DbSet<DonationModel> Donations { get; set; }
@@ -33,6 +32,10 @@ public class ApplicationDbContext : DbContext
 
     public DbSet<GoalModel> Goals { get; set; }
     public DbSet<RefreshTokenModel> RefreshTokens { get; set; }
+
+    public DbSet<EnrolledMembershipModel> EnrolledMembershipModels { get; set; }
+
+    public DbSet<GoalModel> GoalModels { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -56,8 +59,8 @@ public class ApplicationDbContext : DbContext
 
         modelBuilder.Entity<UserModel>()
             .HasOne(u => u.UserType)
-            .WithOne()
-            .HasForeignKey<UserModel>(u => u.UserTypeId);
+            .WithMany()
+            .HasForeignKey(um => um.UserTypeId);
 
         modelBuilder.Entity<CreatorModel>()
             .HasOne(cm => cm.UserModel)
@@ -77,6 +80,11 @@ public class ApplicationDbContext : DbContext
             .OnDelete(DeleteBehavior.NoAction)
             .HasForeignKey<CreatorModel>(cm => cm.ContentTypeId);
 
+        modelBuilder.Entity<CreatorModel>()
+            .HasMany(cm => cm.Goals)
+            .WithOne()
+            .HasForeignKey(g => g.CreatorId)
+            .OnDelete(DeleteBehavior.Cascade);
 
         modelBuilder.Entity<FollowModel>()
             .HasKey(f => new { f.UserId, f.CreatorId });
@@ -107,8 +115,6 @@ public class ApplicationDbContext : DbContext
             .OnDelete(DeleteBehavior.Cascade)
             .IsRequired();
 
-        modelBuilder.Entity<EnrolledMembershipModel>()
-            .HasKey(em => new { em.UserId, em.MembershipId });
 
         modelBuilder.Entity<EnrolledMembershipModel>()
             .HasOne(em => em.User)
@@ -116,9 +122,10 @@ public class ApplicationDbContext : DbContext
             .HasForeignKey(em => em.UserId);
 
         modelBuilder.Entity<EnrolledMembershipModel>()
-            .HasOne(em => em.MembershipModel)
+            .HasOne(em => em.Membership)
             .WithMany(m => m.EnrolledMemberships)
             .HasForeignKey(em => em.MembershipId);
+
 
         modelBuilder.Entity<RoleModel>().HasData(
             new RoleModel { RoleId = 1, RoleName = "admin" },
@@ -137,6 +144,14 @@ public class ApplicationDbContext : DbContext
 
         modelBuilder.Entity<MembershipModel>()
             .Property(m => m.MembershipAmount)
+            .HasPrecision(18, 2);
+
+        modelBuilder.Entity<GoalModel>()
+            .Property(g => g.GoalAmount)
+            .HasPrecision(18, 2);
+        
+        modelBuilder.Entity<EnrolledMembershipModel>()
+            .Property(em => em.PaidAmount)
             .HasPrecision(18, 2);
     }
 

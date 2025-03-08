@@ -3,6 +3,8 @@ using System.Text.Json;
 using ArtEFundAPIServices.Data.DatabaseContext;
 using ArtEFundAPIServices.DataAccess.ContentType;
 using ArtEFundAPIServices.DataAccess.Creator;
+using ArtEFundAPIServices.DataAccess.Donation;
+using ArtEFundAPIServices.DataAccess.Membership;
 using ArtEFundAPIServices.DataAccess.RefreshToken;
 using ArtEFundAPIServices.DataAccess.User;
 using ArtEFundAPIServices.Helper;
@@ -20,6 +22,8 @@ builder.Services.AddScoped<IUserInterface, UserRepo>();
 builder.Services.AddScoped<IRefreshTokenInterface, RefreshTokenRepo>();
 builder.Services.AddScoped<IContentTypeInterface, ContentTypeRepo>();
 builder.Services.AddScoped<ICreatorInterface, CreatorRepo>();
+builder.Services.AddScoped<IMembershipInterface, MembershipRepository>();
+builder.Services.AddScoped<IDonationInterface, DonationRepository>();
 
 builder.Services.AddSingleton<IPasswordHasher, PasswordHasher>();
 builder.Services.AddHttpContextAccessor();

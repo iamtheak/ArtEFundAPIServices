@@ -1,4 +1,5 @@
-﻿using ArtEFundAPIServices.DTO.User;
+﻿using ArtEFundAPIServices.Data.Model;
+using ArtEFundAPIServices.DTO.User;
 
 namespace ArtEFundAPIServices.DTO.Creator
 {
@@ -7,9 +8,12 @@ namespace ArtEFundAPIServices.DTO.Creator
         public int CreatorId { get; set; }
         public string? CreatorBio { get; set; }
         public string? CreatorDescription { get; set; }
-        public string? CreatorAvatar { get; set; }
         public string? CreatorBanner { get; set; }
-        public string? CreatorGoal { get; set; }
-        public string ContentType { get; set; }
+        public string ContentType { get; set; } = "";
+        public GoalModel? Goal { get; set; }
+
+        public bool HasMembership { get; set; }
+
+        public bool HasPosts { get; set; }
     }
 }

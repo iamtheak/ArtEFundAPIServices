@@ -1,15 +1,26 @@
-﻿namespace ArtEFundAPIServices.Data.Model;
+﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.EntityFrameworkCore;
+
+namespace ArtEFundAPIServices.Data.Model;
 
 public class EnrolledMembershipModel
 {
-    public int MembershipId { get; set; }
-    
+    [Key]
+    public int EnrolledMembershipId { get; set; } // Primary Key
     public int UserId { get; set; }
+    public int MembershipId { get; set; }
+
+    public DateTime EnrolledDate { get; set; } = DateTime.UtcNow;
     
-    public DateTime EnrolledDate { get; set; } = DateTime.Now;
+    public DateTime? ExpiryDate { get; set; }
     
-    public bool isActive { get; set; }
+    public bool IsActive { get; set; }
+    
+    [Range(0.01,double.MaxValue )]
+    public decimal PaidAmount { get; set; }
     public UserModel User { get; set; }
     
-    public MembershipModel MembershipModel { get; set; }
+    public MembershipModel Membership { get; set; }
+    
 }

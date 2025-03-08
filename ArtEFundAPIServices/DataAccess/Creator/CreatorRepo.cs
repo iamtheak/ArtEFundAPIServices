@@ -1,6 +1,5 @@
 ﻿using ArtEFundAPIServices.Data.DatabaseContext;
 using ArtEFundAPIServices.Data.Model;
-using ArtEFundAPIServices.DataAccess.ContentType;
 using Microsoft.EntityFrameworkCore;
 
 namespace ArtEFundAPIServices.DataAccess.Creator;
@@ -8,40 +7,46 @@ namespace ArtEFundAPIServices.DataAccess.Creator;
 public class CreatorRepo : ICreatorInterface
 {
     private readonly ApplicationDbContext _context;
-    private readonly IContentTypeInterface _contentTypeInterface;
 
-
-    public CreatorRepo(ApplicationDbContext context, IContentTypeInterface contentTypeInterface)
+    public CreatorRepo(ApplicationDbContext context)
     {
         _context = context;
-        _contentTypeInterface = contentTypeInterface;
     }
 
     public async Task<List<CreatorModel>> GetCreators()
     {
         List<CreatorModel> creators =
-            await _context.Creators.Include(c => c.ContentType).Include(c => c.UserModel).ToListAsync();
+            await _context.Creators.Include(c => c.ContentType)
+                .Include(c => c.ContentType)
+                .Include(c => c.UserModel)
+                .ThenInclude(c => c.RoleModel)
+                .ToListAsync();
 
         return creators;
     }
 
     public async Task<CreatorModel?> GetCreatorById(int id)
     {
-        CreatorModel creatorModel = await _context.Creators.FirstOrDefaultAsync(x => x.CreatorId == id);
+        CreatorModel? creatorModel = await _context.Creators
+            .Include(cm => cm.ContentType)
+            .Include(cm => cm.UserModel)
+            .ThenInclude(um => um.RoleModel)
+            .FirstOrDefaultAsync(x => x.CreatorId == id);
         return creatorModel;
     }
 
-
     public async Task<CreatorModel?> GetCreatorByUserId(int id)
     {
-        CreatorModel creatorModel =
-            await _context.Creators.Include(cm => cm.UserModel).FirstOrDefaultAsync(x => x.UserId == id);
+        CreatorModel? creatorModel =
+            await _context.Creators.Include(cm => cm.UserModel)
+                .Include(cm => cm.Goals)
+                .FirstOrDefaultAsync(x => x.UserId == id);
         return creatorModel;
     }
 
     public async Task<CreatorModel> CreateCreator(CreatorModel creator)
     {
-        ContentTypeModel contentTypeModel = await _contentTypeInterface.GetContentTypeById(creator.ContentTypeId);
+        ContentTypeModel? contentTypeModel = await GetContentTypeById(creator.ContentTypeId);
         if (contentTypeModel == null)
         {
             throw new Exception("Content Type not found");
@@ -53,10 +58,14 @@ public class CreatorRepo : ICreatorInterface
         return creator;
     }
 
-    public Task<CreatorModel> UpdateCreator(int id, CreatorModel creator)
+
+    public async Task<CreatorModel> UpdateCreator(CreatorModel existingCreator)
     {
-        throw new System.NotImplementedException();
+        _context.Creators.Update(existingCreator);
+        await _context.SaveChangesAsync();
+        return existingCreator;
     }
+
 
     public Task<bool> DeleteCreator(int id)
     {
@@ -66,7 +75,9 @@ public class CreatorRepo : ICreatorInterface
     public async Task<CreatorModel?> GetCreatorByUserName(string userName)
     {
         return await _context.Creators
-            .Include(c => c.UserModel) // Include the UserModel navigation property
+            .Include(c => c.UserModel)
+            .Include(c => c.Memberships)
+            // Include the UserModel navigation property
             .FirstOrDefaultAsync(c => c.UserModel.UserName == userName);
     }
 

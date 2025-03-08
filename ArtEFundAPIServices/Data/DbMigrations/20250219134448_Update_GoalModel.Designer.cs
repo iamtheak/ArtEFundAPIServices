@@ -4,6 +4,7 @@ using ArtEFundAPIServices.Data.DatabaseContext;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace ArtEFundAPIServices.Data.DbMigrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250219134448_Update_GoalModel")]
+    partial class Update_GoalModel
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -130,10 +133,6 @@ namespace ArtEFundAPIServices.Data.DbMigrations
                     b.Property<int>("MembershipId")
                         .HasColumnType("int");
 
-                    b.Property<decimal>("PaidAmount")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
-
                     b.Property<int>("UserId")
                         .HasColumnType("int");
 
@@ -180,6 +179,7 @@ namespace ArtEFundAPIServices.Data.DbMigrations
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<string>("GoalDescription")
+                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<float>("GoalProgress")
@@ -213,13 +213,12 @@ namespace ArtEFundAPIServices.Data.DbMigrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<string>("MembershipBenefits")
+                    b.Property<string>("MembershipBenifits")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("MembershipName")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                    b.Property<int>("MembershipName")
+                        .HasColumnType("int");
 
                     b.Property<int>("MembershipTier")
                         .HasColumnType("int");
@@ -349,7 +348,8 @@ namespace ArtEFundAPIServices.Data.DbMigrations
                     b.HasIndex("UserName")
                         .IsUnique();
 
-                    b.HasIndex("UserTypeId");
+                    b.HasIndex("UserTypeId")
+                        .IsUnique();
 
                     b.ToTable("Users");
                 });
@@ -487,8 +487,8 @@ namespace ArtEFundAPIServices.Data.DbMigrations
                         .IsRequired();
 
                     b.HasOne("ArtEFundAPIServices.Data.Model.UserType", "UserType")
-                        .WithMany()
-                        .HasForeignKey("UserTypeId")
+                        .WithOne()
+                        .HasForeignKey("ArtEFundAPIServices.Data.Model.UserModel", "UserTypeId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 

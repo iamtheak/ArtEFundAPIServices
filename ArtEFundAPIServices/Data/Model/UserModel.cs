@@ -32,7 +32,6 @@ public class UserModel
     [ForeignKey("UserType")] public int UserTypeId { get; set; }
     public RoleModel RoleModel { get; set; }
 
-    // Navigation property for RefreshTokens
     public UserType UserType { get; set; }
 
     public ICollection<RefreshTokenModel> RefreshTokens { get; set; }

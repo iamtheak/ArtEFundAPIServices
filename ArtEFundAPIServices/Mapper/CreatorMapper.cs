@@ -28,23 +28,26 @@ public static class CreatorMapper
         };
     }
 
+
     public static CreatorViewDto ToCreatorViewDto(CreatorModel creator)
     {
         return new CreatorViewDto()
         {
-            CreatorGoal = creator.CreatorGoal,
             CreatorBanner = creator.CreatorBanner,
             CreatorBio = creator.CreatorBio,
             CreatorDescription = creator.CreatorDescription,
             CreatorId = creator.CreatorId,
-            ContentType = creator.ContentType.ContentTypeName,
-            Email = creator.UserModel.Email,
-            FirstName = creator.UserModel.FirstName,
-            LastName = creator.UserModel.LastName,
+            ContentType = creator.ContentType?.ContentTypeName, // Handle potential null
+            Email = creator.UserModel?.Email, // Handle potential null
+            FirstName = creator.UserModel?.FirstName,
+            LastName = creator.UserModel?.LastName,
             UserId = creator.UserId,
-            UserName = creator.UserModel.UserName,
-            ProfilePicture = creator.UserModel.ProfilePicture,
-            Role = creator.UserModel.RoleModel.RoleName
+            UserName = creator.UserModel?.UserName,
+            ProfilePicture = creator.UserModel?.ProfilePicture,
+            Role = creator.UserModel?.RoleModel?.RoleName, // Handle potential null
+            Goal = creator.Goals?.FirstOrDefault(g => g.IsGoalActve == true), // Handle potential null
+            HasMembership = creator.Memberships?.Any() ?? false,
+            HasPosts = creator.Donations?.Any() ?? false
         };
     }
 }

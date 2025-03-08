@@ -11,12 +11,12 @@ public class GoalModel
     
     [ForeignKey("CreatorId")]
     public int CreatorId { get; set; }
-    
-    public float GoalAmount { get; set; }
+    public decimal GoalAmount { get; set; }
     
     public float GoalProgress { get; set; }
     
-    public string GoalDescription { get; set; }
+    public string? GoalDescription { get; set; }
     
-    public bool GoalReached { get; set; }
+    public bool IsGoalReached { get; set; }
+    public bool IsGoalActve { get; set; } = true;
 }

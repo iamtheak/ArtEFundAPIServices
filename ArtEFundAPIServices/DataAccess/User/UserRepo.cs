@@ -30,6 +30,7 @@ public class UserRepo : IUserInterface
     {
         return await _context.Users
             .Include(u => u.RoleModel)
+            .Include(u => u.UserType)
             .SingleOrDefaultAsync(u => u.Email == email);
     }
 
@@ -42,7 +43,6 @@ public class UserRepo : IUserInterface
 
     public async Task<UserModel> AddUser(UserModel user, int userTypeId)
     {
-        using var transaction = await _context.Database.BeginTransactionAsync();
         try
         {
             var roleTask = _context.Roles
@@ -66,13 +66,11 @@ public class UserRepo : IUserInterface
 
             _context.Users.Add(user);
             await _context.SaveChangesAsync();
-            await transaction.CommitAsync();
 
             return user;
         }
         catch (Exception ex)
         {
-            await transaction.RollbackAsync();
             throw new Exception("Failed to create user");
         }
     }

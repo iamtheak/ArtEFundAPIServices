@@ -59,7 +59,10 @@ public static class MembershipMapper
             EnrolledDate = model.EnrolledDate,
             ExpiryDate = model.ExpiryDate,
             IsActive = model.IsActive,
-            PaidAmount = model.PaidAmount
+            PaidAmount = model.PaidAmount,
+            UserName = model.User.UserName,
+            MembershipName = model.Membership.MembershipName,
+            CreatorId = model.Membership.CreatorId,
         };
     }
 
@@ -73,6 +76,4 @@ public static class MembershipMapper
             PaidAmount = dto.PaidAmount
         };
     }
-
-    
 }

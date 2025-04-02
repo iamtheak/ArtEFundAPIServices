@@ -25,6 +25,7 @@ public class DonationRepository : IDonationInterface
         return await _context.Donations
             .Where(d => d.CreatorId == creatorId)
             .Include(d => d.Creator)
+            .ThenInclude(c => c.UserModel)
             .ToListAsync();
     }
 
@@ -32,7 +33,7 @@ public class DonationRepository : IDonationInterface
     {
         return await _context.Donations
             .Include(d => d.Creator)
-            .Include(d => d.Creator.UserModel)
+            .ThenInclude(c => c.UserModel)
             .Where(d => d.Creator.UserModel.UserName == userName)
             .ToListAsync();
     }
@@ -42,5 +43,14 @@ public class DonationRepository : IDonationInterface
         await _context.Donations.AddAsync(donation);
         await _context.SaveChangesAsync();
         return donation;
+    }
+
+    public async Task<List<DonationModel>> GetDonationsByUserId(int userId)
+    {
+        return await _context.Donations
+            .Include(d => d.Creator)
+            .ThenInclude(c => c.UserModel)
+            .Where(d => d.UserId == userId)
+            .ToListAsync();
     }
 }

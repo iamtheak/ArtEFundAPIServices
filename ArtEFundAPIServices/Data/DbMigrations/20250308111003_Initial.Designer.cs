@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace ArtEFundAPIServices.Data.DbMigrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20250228080613_Rename_membership_benefits")]
-    partial class Rename_membership_benefits
+    [Migration("20250308111003_Initial")]
+    partial class Initial
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -132,6 +132,10 @@ namespace ArtEFundAPIServices.Data.DbMigrations
 
                     b.Property<int>("MembershipId")
                         .HasColumnType("int");
+
+                    b.Property<decimal>("PaidAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<int>("UserId")
                         .HasColumnType("int");

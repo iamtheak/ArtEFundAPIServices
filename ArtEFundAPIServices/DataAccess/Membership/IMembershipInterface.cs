@@ -24,5 +24,19 @@ public interface IMembershipInterface
         DowngradeMembership(EnrolledMembershipModel enrolledMembershipModel, int membershipId);
 
     Task<bool> EndMembership(EnrolledMembershipModel enrolledMembershipModel);
-
+    
+    Task<List<EnrolledMembershipModel>> GetEnrolledMembershipsByCreatorId(int creatorId);
+    
+    Task<List<EnrolledMembershipModel>> GetEnrolledMembershipsByUserName(string userName);
+    
+    Task<EnrolledMembershipModel?> GetEnrolledMembershipById(int id);
+    
+    Task<List<EnrolledMembershipModel>> GetEnrolledMembershipsByMembershipId(int membershipId);
+    
+    Task<List<EnrolledMembershipModel>> GetEnrolledMembershipsByMembershipIdAndCreatorId(int membershipId, int creatorId);
+    
+    Task<List<EnrolledMembershipModel>> GetEnrolledMembershipsByUserId(int userId);
+    
+    Task<EnrolledMembershipModel?> GetEnrolledMembershipByUserIdAndMembershipId(int userId, int membershipId);
+    
 }

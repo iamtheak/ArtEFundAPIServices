@@ -143,7 +143,7 @@ namespace ArtEFundAPIServices.Data.DbMigrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("EnrolledMembershipModels");
+                    b.ToTable("EnrolledMembership");
                 });
 
             modelBuilder.Entity("ArtEFundAPIServices.Data.Model.FollowModel", b =>

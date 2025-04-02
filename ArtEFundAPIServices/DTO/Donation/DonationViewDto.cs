@@ -8,4 +8,6 @@ public class DonationViewDto
     public string? DonationMessage { get; set; }
     public int CreatorId { get; set; }
     public int? UserId { get; set; }
+    
+    public string userName { get; set; }
 }

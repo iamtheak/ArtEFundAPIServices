@@ -27,6 +27,11 @@ builder.Services.AddScoped<IDonationInterface, DonationRepository>();
 
 builder.Services.AddSingleton<IPasswordHasher, PasswordHasher>();
 builder.Services.AddHttpContextAccessor();
+builder.Services.AddHttpClient("Khalti", client =>
+{
+    client.BaseAddress = new Uri("https://dev.khalti.com/api/v2/");
+    client.DefaultRequestHeaders.Add("Authorization", builder.Configuration["Khalti:SecretKey"]);
+});
 
 builder.Services.AddControllers(); // Add MVC services
 

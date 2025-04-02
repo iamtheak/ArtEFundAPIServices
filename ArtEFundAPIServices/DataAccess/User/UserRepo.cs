@@ -45,15 +45,11 @@ public class UserRepo : IUserInterface
     {
         try
         {
-            var roleTask = _context.Roles
+            var defaultRole = await _context.Roles
                 .FirstOrDefaultAsync(r => r.RoleId == 2);
-            var userTypeTask = _context.UserTypes
+            var defaultUserType = await _context.UserTypes
                 .FirstOrDefaultAsync(u => u.UserTypeId == userTypeId);
-
-            await Task.WhenAll(roleTask, userTypeTask);
-
-            var defaultRole = await roleTask;
-            var defaultUserType = await userTypeTask;
+            
 
             if (defaultRole == null)
                 throw new Exception("Role not found");

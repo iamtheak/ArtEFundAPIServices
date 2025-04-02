@@ -1,5 +1,8 @@
 ﻿using ArtEFundAPIServices.Data.Model;
+using ArtEFundAPIServices.DataAccess.Creator;
 using ArtEFundAPIServices.DataAccess.Membership;
+using ArtEFundAPIServices.DataAccess.User;
+using ArtEFundAPIServices.DTO.EnrolledMembership;
 using ArtEFundAPIServices.DTO.Membership;
 using ArtEFundAPIServices.Mapper;
 using Microsoft.AspNetCore.Mvc;
@@ -11,10 +14,15 @@ namespace ArtEFundAPIServices.Controller;
 public class MembershipController : ControllerBase
 {
     private readonly IMembershipInterface _membershipRepository;
+    private readonly IUserInterface _userRepository;
+    private readonly ICreatorInterface _creatorRepository;
 
-    public MembershipController(IMembershipInterface membershipRepository)
+    public MembershipController(IMembershipInterface membershipRepository, IUserInterface userRepository,
+        ICreatorInterface creatorRepository)
     {
         _membershipRepository = membershipRepository;
+        _userRepository = userRepository;
+        _creatorRepository = creatorRepository;
     }
 
     // GET: api/Membership/5
@@ -66,6 +74,13 @@ public class MembershipController : ControllerBase
         if (!ModelState.IsValid)
         {
             return BadRequest(ModelState);
+        }
+
+        var creator = await _creatorRepository.GetCreatorById(createDto.CreatorId);
+
+        if (creator == null)
+        {
+            return NotFound(new { message = "Creator not found" });
         }
 
         var membershipModel = MembershipMapper.MapToModel(createDto);
@@ -126,36 +141,203 @@ public class MembershipController : ControllerBase
     }
 
     [HttpPost("enroll")]
-    public async Task<ActionResult<EnrolledMembershipModel>> EnrollMembership(EnrolledMembershipModel enrolledMembership)
+    public async Task<ActionResult<EnrolledMembershipModel>> EnrollMembership(
+        [FromBody] EnrollMembershipDto enrollMembership)
     {
+        var userId = enrollMembership.UserId;
+        var membershipId = enrollMembership.MembershipId;
+
+        var membership = await _membershipRepository.GetMembershipById(membershipId);
+        if (membership == null)
+        {
+            return NotFound(new { message = "Membership not found" });
+        }
+
+        var user = await _userRepository.GetUserById(userId);
+
+        if (user == null)
+        {
+            return NotFound(new { message = "User not found" });
+        }
+
+        var creatorMembers = await _membershipRepository.GetEnrolledMembershipsByCreatorId(membership.CreatorId);
+        var isAlreadyEnrolled = creatorMembers.Any(em => em.UserId == userId);
+        if (isAlreadyEnrolled)
+        {
+            return BadRequest(new { message = "User already enrolled in a membership of the creator" });
+        }
+
+        var enrolledMembership = new EnrolledMembershipModel
+        {
+            UserId = userId,
+            MembershipId = membershipId,
+            EnrolledDate = DateTime.Now,
+            ExpiryDate = DateTime.Now.AddMonths(1),
+            IsActive = true
+        };
         var result = await _membershipRepository.EnrollMembership(enrolledMembership);
-        return Ok(result);
+        return Ok(new { message = "Enrolled" });
     }
 
     [HttpPost("upgrade")]
-    public async Task<ActionResult<EnrolledMembershipModel>> UpgradeMembership(EnrolledMembershipModel enrolledMembership, int membershipId)
+    public async Task<ActionResult<EnrolledMembershipModel>> UpgradeMembership(int userId, int membershipId,
+        int newMembershipId)
     {
-        var result = await _membershipRepository.UpgradeMembership(enrolledMembership, membershipId);
-        return Ok(result);
+        var membership = await _membershipRepository.GetMembershipById(newMembershipId);
+
+        if (membership == null)
+        {
+            return NotFound(new { message = "Membership not found" });
+        }
+
+        var user = await _userRepository.GetUserById(userId);
+
+        if (user == null)
+        {
+            return NotFound(new { message = "User not found" });
+        }
+
+        var enrolledMembership =
+            await _membershipRepository.GetEnrolledMembershipByUserIdAndMembershipId(userId, membershipId);
+        if (enrolledMembership == null)
+        {
+            return NotFound(new { message = "User not enrolled in the membership" });
+        }
+
+        var result = await _membershipRepository.UpgradeMembership(enrolledMembership, newMembershipId);
+        return Ok(new { message = "Upgraded" });
     }
 
     [HttpPost("downgrade")]
-    public async Task<ActionResult<EnrolledMembershipModel>> DowngradeMembership(EnrolledMembershipModel enrolledMembership, int membershipId)
+    public async Task<ActionResult<EnrolledMembershipModel>> DowngradeMembership(int userId, int membershipId,
+        int newMembershipId)
     {
+        var enrolledMembership =
+            await _membershipRepository.GetEnrolledMembershipByUserIdAndMembershipId(userId, membershipId);
+        if (enrolledMembership == null)
+        {
+            return NotFound();
+        }
+
+        enrolledMembership.MembershipId = newMembershipId;
         var result = await _membershipRepository.DowngradeMembership(enrolledMembership, membershipId);
-        return Ok(result);
+        return Ok(new { message = "Downgraded" });
     }
 
     [HttpPost("end")]
-    public async Task<ActionResult> EndMembership(EnrolledMembershipModel enrolledMembership)
+    public async Task<ActionResult> EndMembership(int userId, int membershipId)
     {
+        var enrolledMembership =
+            await _membershipRepository.GetEnrolledMembershipByUserIdAndMembershipId(userId, membershipId);
+        if (enrolledMembership == null)
+        {
+            return NotFound();
+        }
+
         var result = await _membershipRepository.EndMembership(enrolledMembership);
         if (result)
         {
-            return Ok();
+            return Ok(new { message = "Membership ended" });
         }
+
         return NotFound();
     }
 
+    [HttpGet("enrolled/creator/{creatorId}")]
+    public async Task<ActionResult<IEnumerable<EnrolledMembershipViewDto>>> GetEnrolledMembershipsByCreatorId(
+        int creatorId)
+    {
+        var enrolledMemberships = await _membershipRepository.GetEnrolledMembershipsByCreatorId(creatorId);
 
+        if (enrolledMemberships == null || enrolledMemberships.Count == 0)
+        {
+            return NotFound();
+        }
+
+        return enrolledMemberships.Select(em => MembershipMapper.MapToViewDto(em)).ToList();
+    }
+
+    [HttpGet("enrolled/username/{userName}")]
+    public async Task<ActionResult<IEnumerable<EnrolledMembershipViewDto>>> GetEnrolledMembershipsByUserName(
+        string userName)
+    {
+        var enrolledMemberships = await _membershipRepository.GetEnrolledMembershipsByUserName(userName);
+
+        if (enrolledMemberships == null || enrolledMemberships.Count == 0)
+        {
+            return NotFound();
+        }
+
+        return enrolledMemberships.Select(em => MembershipMapper.MapToViewDto(em)).ToList();
+    }
+
+    [HttpGet("enrolled/{id}")]
+    public async Task<ActionResult<EnrolledMembershipViewDto>> GetEnrolledMembershipById(int id)
+    {
+        var enrolledMembership = await _membershipRepository.GetEnrolledMembershipById(id);
+
+        if (enrolledMembership == null)
+        {
+            return NotFound();
+        }
+
+        return MembershipMapper.MapToViewDto(enrolledMembership);
+    }
+
+    [HttpGet("enrolled/membership/{membershipId}")]
+    public async Task<ActionResult<IEnumerable<EnrolledMembershipViewDto>>> GetEnrolledMembershipsByMembershipId(
+        int membershipId)
+    {
+        var enrolledMemberships = await _membershipRepository.GetEnrolledMembershipsByMembershipId(membershipId);
+
+        if (enrolledMemberships == null || enrolledMemberships.Count == 0)
+        {
+            return NotFound();
+        }
+
+        return enrolledMemberships.Select(em => MembershipMapper.MapToViewDto(em)).ToList();
+    }
+
+    [HttpGet("enrolled/membership/{membershipId}/creator/{creatorId}")]
+    public async Task<ActionResult<IEnumerable<EnrolledMembershipViewDto>>>
+        GetEnrolledMembershipsByMembershipIdAndCreatorId(int membershipId, int creatorId)
+    {
+        var enrolledMemberships =
+            await _membershipRepository.GetEnrolledMembershipsByMembershipIdAndCreatorId(membershipId, creatorId);
+
+        if (enrolledMemberships == null || enrolledMemberships.Count == 0)
+        {
+            return NotFound();
+        }
+
+        return enrolledMemberships.Select(em => MembershipMapper.MapToViewDto(em)).ToList();
+    }
+
+    [HttpGet("enrolled/user/{userId}")]
+    public async Task<ActionResult<IEnumerable<EnrolledMembershipViewDto>>> GetEnrolledMembershipsByUserId(int userId)
+    {
+        var enrolledMemberships = await _membershipRepository.GetEnrolledMembershipsByUserId(userId);
+
+        if (enrolledMemberships == null || enrolledMemberships.Count == 0)
+        {
+            return NotFound();
+        }
+
+        return enrolledMemberships.Select(em => MembershipMapper.MapToViewDto(em)).ToList();
+    }
+
+    [HttpGet("enrolled/user/{userId}/membership/{membershipId}")]
+    public async Task<ActionResult<EnrolledMembershipViewDto>> GetEnrolledMembershipByUserIdAndMembershipId(int userId,
+        int membershipId)
+    {
+        var enrolledMembership =
+            await _membershipRepository.GetEnrolledMembershipByUserIdAndMembershipId(userId, membershipId);
+
+        if (enrolledMembership == null)
+        {
+            return NotFound();
+        }
+
+        return MembershipMapper.MapToViewDto(enrolledMembership);
+    }
 }

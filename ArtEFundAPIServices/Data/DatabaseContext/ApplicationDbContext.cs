@@ -33,7 +33,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<GoalModel> Goals { get; set; }
     public DbSet<RefreshTokenModel> RefreshTokens { get; set; }
 
-    public DbSet<EnrolledMembershipModel> EnrolledMembershipModels { get; set; }
+    public DbSet<EnrolledMembershipModel> EnrolledMembership { get; set; }
 
     public DbSet<GoalModel> GoalModels { get; set; }
 

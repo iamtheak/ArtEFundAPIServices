@@ -12,7 +12,6 @@ namespace ArtEFundAPIServices.Controller;
 [ApiController]
 [Route("/api/[controller]")]
 [Consumes("application/json")]
-[RoleCheck("user")]
 public class UserController(IUserInterface _userInterface) : ControllerBase
 {
     [HttpGet]

@@ -4,6 +4,7 @@ using ArtEFundAPIServices.Data.DatabaseContext;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace ArtEFundAPIServices.Data.DbMigrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250410124034_Add donation goal title")]
+    partial class Adddonationgoaltitle
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -239,122 +242,6 @@ namespace ArtEFundAPIServices.Data.DbMigrations
                     b.HasIndex("CreatorId");
 
                     b.ToTable("Memberships");
-                });
-
-            modelBuilder.Entity("ArtEFundAPIServices.Data.Model.PostCommentModel", b =>
-                {
-                    b.Property<int>("CommentId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("CommentId"));
-
-                    b.Property<string>("CommentText")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<DateTime>("CommentedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
-
-                    b.Property<int>("PostId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("UserId")
-                        .HasColumnType("int");
-
-                    b.HasKey("CommentId");
-
-                    b.HasIndex("PostId");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("PostComments");
-                });
-
-            modelBuilder.Entity("ArtEFundAPIServices.Data.Model.PostLikeModel", b =>
-                {
-                    b.Property<int>("LikeId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("LikeId"));
-
-                    b.Property<DateTime>("LikedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("PostId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("UserId")
-                        .HasColumnType("int");
-
-                    b.HasKey("LikeId");
-
-                    b.HasIndex("PostId");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("PostLikes");
-                });
-
-            modelBuilder.Entity("ArtEFundAPIServices.Data.Model.PostModel", b =>
-                {
-                    b.Property<int>("PostId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("PostId"));
-
-                    b.Property<string>("Content")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("CreatorId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("ImageUrl")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("IsMembersOnly")
-                        .HasColumnType("bit");
-
-                    b.Property<int?>("MembershipTier")
-                        .HasColumnType("int");
-
-                    b.Property<string>("PostSlug")
-                        .IsRequired()
-                        .HasMaxLength(21)
-                        .HasColumnType("nvarchar(21)");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("Views")
-                        .HasColumnType("int");
-
-                    b.HasKey("PostId");
-
-                    b.HasIndex("CreatorId");
-
-                    b.ToTable("Posts");
                 });
 
             modelBuilder.Entity("ArtEFundAPIServices.Data.Model.RefreshTokenModel", b =>
@@ -597,55 +484,6 @@ namespace ArtEFundAPIServices.Data.DbMigrations
                     b.Navigation("Creator");
                 });
 
-            modelBuilder.Entity("ArtEFundAPIServices.Data.Model.PostCommentModel", b =>
-                {
-                    b.HasOne("ArtEFundAPIServices.Data.Model.PostModel", "Post")
-                        .WithMany("Comments")
-                        .HasForeignKey("PostId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("ArtEFundAPIServices.Data.Model.UserModel", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Post");
-
-                    b.Navigation("User");
-                });
-
-            modelBuilder.Entity("ArtEFundAPIServices.Data.Model.PostLikeModel", b =>
-                {
-                    b.HasOne("ArtEFundAPIServices.Data.Model.PostModel", "Post")
-                        .WithMany("Likes")
-                        .HasForeignKey("PostId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("ArtEFundAPIServices.Data.Model.UserModel", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Post");
-
-                    b.Navigation("User");
-                });
-
-            modelBuilder.Entity("ArtEFundAPIServices.Data.Model.PostModel", b =>
-                {
-                    b.HasOne("ArtEFundAPIServices.Data.Model.CreatorModel", "Creator")
-                        .WithMany()
-                        .HasForeignKey("CreatorId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Creator");
-                });
-
             modelBuilder.Entity("ArtEFundAPIServices.Data.Model.RefreshTokenModel", b =>
                 {
                     b.HasOne("ArtEFundAPIServices.Data.Model.UserModel", null)
@@ -686,13 +524,6 @@ namespace ArtEFundAPIServices.Data.DbMigrations
             modelBuilder.Entity("ArtEFundAPIServices.Data.Model.MembershipModel", b =>
                 {
                     b.Navigation("EnrolledMemberships");
-                });
-
-            modelBuilder.Entity("ArtEFundAPIServices.Data.Model.PostModel", b =>
-                {
-                    b.Navigation("Comments");
-
-                    b.Navigation("Likes");
                 });
 
             modelBuilder.Entity("ArtEFundAPIServices.Data.Model.UserModel", b =>

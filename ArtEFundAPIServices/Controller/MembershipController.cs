@@ -161,7 +161,7 @@ public class MembershipController : ControllerBase
         }
 
         var creatorMembers = await _membershipRepository.GetEnrolledMembershipsByCreatorId(membership.CreatorId);
-        var isAlreadyEnrolled = creatorMembers.Any(em => em.UserId == userId);
+        var isAlreadyEnrolled = creatorMembers.Any(em => em.UserId == userId && em.IsActive);
         if (isAlreadyEnrolled)
         {
             return BadRequest(new { message = "User already enrolled in a membership of the creator" });
@@ -179,15 +179,18 @@ public class MembershipController : ControllerBase
         return Ok(new { message = "Enrolled" });
     }
 
-    [HttpPost("upgrade")]
-    public async Task<ActionResult<EnrolledMembershipModel>> UpgradeMembership(int userId, int membershipId,
-        int newMembershipId)
+    [HttpPost("change")]
+    public async Task<ActionResult<EnrolledMembershipModel>> ChangeMembership([FromBody] ChangeMembershipDto changeDto)
     {
+        int newMembershipId = changeDto.MembershipId;
+        int membershipId = changeDto.EnrolledMembershipId;
+        int userId = changeDto.UserId;
+
         var membership = await _membershipRepository.GetMembershipById(newMembershipId);
 
         if (membership == null)
         {
-            return NotFound(new { message = "Membership not found" });
+            return NotFound(new { message = "New Membership not found" });
         }
 
         var user = await _userRepository.GetUserById(userId);
@@ -204,31 +207,21 @@ public class MembershipController : ControllerBase
             return NotFound(new { message = "User not enrolled in the membership" });
         }
 
-        var result = await _membershipRepository.UpgradeMembership(enrolledMembership, newMembershipId);
+        if (enrolledMembership.Membership.MembershipTier > membership.MembershipTier && enrolledMembership.IsActive)
+        {
+            return BadRequest(new { message = "Cannot downgrade membership while active membership" });
+        }
+
+        var result = await _membershipRepository.ChangeMembership(enrolledMembership, newMembershipId);
         return Ok(new { message = "Upgraded" });
     }
 
-    [HttpPost("downgrade")]
-    public async Task<ActionResult<EnrolledMembershipModel>> DowngradeMembership(int userId, int membershipId,
-        int newMembershipId)
-    {
-        var enrolledMembership =
-            await _membershipRepository.GetEnrolledMembershipByUserIdAndMembershipId(userId, membershipId);
-        if (enrolledMembership == null)
-        {
-            return NotFound();
-        }
-
-        enrolledMembership.MembershipId = newMembershipId;
-        var result = await _membershipRepository.DowngradeMembership(enrolledMembership, membershipId);
-        return Ok(new { message = "Downgraded" });
-    }
 
     [HttpPost("end")]
-    public async Task<ActionResult> EndMembership(int userId, int membershipId)
+    public async Task<ActionResult> EndMembership([FromBody] int enrolledMembershipiD)
     {
         var enrolledMembership =
-            await _membershipRepository.GetEnrolledMembershipByUserIdAndMembershipId(userId, membershipId);
+            await _membershipRepository.GetEnrolledMembershipById(enrolledMembershipiD);
         if (enrolledMembership == null)
         {
             return NotFound();

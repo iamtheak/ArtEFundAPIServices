@@ -22,7 +22,7 @@ public class MembershipRepository : IMembershipInterface
     public async Task<List<MembershipModel>> GetMembershipsByCreatorId(int creatorId)
     {
         return await _context.Memberships
-            .Where(m => m.CreatorId == creatorId)
+            .Where(m => m.CreatorId == creatorId && !m.IsDeleted)
             .ToListAsync();
     }
 
@@ -63,7 +63,8 @@ public class MembershipRepository : IMembershipInterface
             return false;
         }
 
-        _context.Memberships.Remove(membership);
+        membership.IsDeleted = true;
+        _context.Memberships.Update(membership);
         await _context.SaveChangesAsync();
 
         return true;
@@ -74,7 +75,7 @@ public class MembershipRepository : IMembershipInterface
         return await _context.Memberships
             .Include(m => m.Creator)
             .ThenInclude(c => c.UserModel)
-            .Where(m => m.Creator.UserModel.UserName == userName)
+            .Where(m => m.Creator.UserModel.UserName == userName && !m.IsDeleted)
             .ToListAsync();
     }
 
@@ -85,12 +86,12 @@ public class MembershipRepository : IMembershipInterface
         return enrolledMembership;
     }
 
-    public async Task<EnrolledMembershipModel> UpgradeMembership(EnrolledMembershipModel enrolledMembershipModel,
+    public async Task<EnrolledMembershipModel> ChangeMembership(EnrolledMembershipModel enrolledMembershipModel,
         int membershipId)
     {
         var currentEnrollment = await _context.EnrolledMembership
             .FirstOrDefaultAsync(em =>
-                em.UserId == enrolledMembershipModel.UserId && em.IsActive &&
+                em.UserId == enrolledMembershipModel.UserId &&
                 (em.MembershipId == enrolledMembershipModel.MembershipId));
 
         if (currentEnrollment != null)
@@ -98,23 +99,22 @@ public class MembershipRepository : IMembershipInterface
             currentEnrollment.IsActive = false;
             currentEnrollment.ExpiryDate = DateTime.UtcNow;
             _context.EnrolledMembership.Update(currentEnrollment);
+            await _context.SaveChangesAsync();
         }
 
-        enrolledMembershipModel.MembershipId = membershipId;
-        enrolledMembershipModel.EnrolledDate = DateTime.UtcNow;
-        enrolledMembershipModel.IsActive = true;
-        enrolledMembershipModel.ExpiryDate = DateTime.Now.AddMonths(1);
+        EnrolledMembershipModel newEnrollment = new()
+        {
+            UserId = enrolledMembershipModel.UserId,
+            MembershipId = membershipId,
+            EnrolledDate = DateTime.UtcNow,
+            IsActive = true,
+            ExpiryDate = DateTime.Now.AddMonths(1)
+        };
 
-        _context.EnrolledMembership.Add(enrolledMembershipModel);
+        _context.EnrolledMembership.Add(newEnrollment);
         await _context.SaveChangesAsync();
 
         return enrolledMembershipModel;
-    }
-
-    public async Task<EnrolledMembershipModel> DowngradeMembership(EnrolledMembershipModel enrolledMembershipModel,
-        int membershipId)
-    {
-        return await UpgradeMembership(enrolledMembershipModel, membershipId);
     }
 
     public async Task<bool> EndMembership(EnrolledMembershipModel enrolledMembershipModel)
@@ -152,12 +152,12 @@ public class MembershipRepository : IMembershipInterface
             .ToListAsync();
     }
 
-    public async Task<EnrolledMembershipModel?> GetEnrolledMembershipById(int id)
+    public async Task<EnrolledMembershipModel?> GetEnrolledMembershipById(int enrolledMembershipId)
     {
         return await _context.EnrolledMembership
             .Include(em => em.User)
             .Include(em => em.Membership)
-            .FirstOrDefaultAsync(em => em.EnrolledMembershipId == id);
+            .FirstOrDefaultAsync(em => em.EnrolledMembershipId == enrolledMembershipId);
     }
 
     public async Task<List<EnrolledMembershipModel>> GetEnrolledMembershipsByMembershipId(int membershipId)
@@ -195,6 +195,16 @@ public class MembershipRepository : IMembershipInterface
             .Include(em => em.Membership)
             .Include(em => em.User)
             .FirstOrDefaultAsync(em => em.UserId == userId && em.MembershipId == membershipId);
+    }
+
+    public async Task<List<EnrolledMembershipModel>> GetEnrolledMembershipsByUserIdAndCreatorId(int userId,
+        int creatorId)
+    {
+        return await _context.EnrolledMembership
+            .Include(em => em.Membership)
+            .Where(em => em.UserId == userId && em.Membership.CreatorId == creatorId)
+            .Include(em => em.User)
+            .ToListAsync();
     }
 
     private bool MembershipExists(int id)

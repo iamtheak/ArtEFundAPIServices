@@ -150,6 +150,165 @@ public class DonationController : ControllerBase
             UserId = createdDonation.UserId
         };
 
+        var goals = await _donationRepository.GetGoalsByCreatorId(donation.CreatorId);
+
+        var activeGoal = goals.FirstOrDefault(g => g.IsGoalActive && !g.IsGoalReached);
+
+        if (activeGoal != null)
+        {
+            activeGoal.GoalProgress += donation.DonationAmount;
+            if (activeGoal.GoalProgress >= activeGoal.GoalAmount)
+            {
+                activeGoal.IsGoalReached = true;
+            }
+
+            await _donationRepository.UpdateDonationGoal(activeGoal);
+        }
+
         return CreatedAtAction(nameof(GetDonationById), new { id = donationViewDto.DonationId }, donationViewDto);
+    }
+
+    [HttpPost("goal")]
+    public async Task<ActionResult<GoalModel>> CreateDonationGoal([FromBody] GoalModel donationGoal)
+    {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(ModelState);
+        }
+
+        var creator = await _creatorRepository.GetCreatorById(donationGoal.CreatorId);
+
+        if (creator == null)
+        {
+            return NotFound(new { message = "Creator not found" });
+        }
+
+        var goals = await _donationRepository.GetGoalsByCreatorId(donationGoal.CreatorId);
+
+        if (goals.Any(g => g.IsGoalActive && !g.IsGoalReached))
+        {
+            return BadRequest(new { message = "A goal is already active for this creator." });
+        }
+
+        donationGoal.IsGoalActive = true;
+        donationGoal.IsGoalReached = false;
+
+        var createdGoal = await _donationRepository.CreateDonationGoal(donationGoal);
+        return CreatedAtAction(nameof(GetDonationById), new { id = createdGoal.GoalId }, createdGoal);
+    }
+
+    [HttpGet("goal/{goalId}")]
+    public async Task<ActionResult<GoalModel>> GetDonationGoalById(int goalId)
+    {
+        var goal = await _donationRepository.GetDonationGoalById(goalId);
+        if (goal == null)
+        {
+            return NotFound();
+        }
+
+        return Ok(goal);
+    }
+
+    [HttpGet("goal/creator/{creatorId}")]
+    public async Task<ActionResult<List<GoalModel>>> GetGoalsByCreatorId(int creatorId)
+    {
+        var goals = await _donationRepository.GetGoalsByCreatorId(creatorId);
+        return Ok(goals);
+    }
+
+    [HttpPut("goal")]
+    public async Task<ActionResult<GoalModel>> UpdateDonationGoal(GoalModel donationGoal)
+    {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(ModelState);
+        }
+
+        var existingGoal = await _donationRepository.GetDonationGoalById(donationGoal.GoalId);
+
+        if (existingGoal == null)
+        {
+            return NotFound(new { message = "Goal not found" });
+        }
+
+        var creator = await _creatorRepository.GetCreatorById(donationGoal.CreatorId);
+
+        if (creator == null)
+        {
+            return NotFound(new { message = "Creator not found" });
+        }
+
+        if (donationGoal.CreatorId != creator.CreatorId)
+        {
+            return BadRequest(new { message = "Creator id not match" });
+        }
+
+        if (!donationGoal.IsGoalActive)
+        {
+            return BadRequest(new { message = "Goal is not active" });
+        }
+        existingGoal.GoalDescription = donationGoal.GoalDescription;
+        existingGoal.GoalAmount = donationGoal.GoalAmount;
+        existingGoal.GoalTitle = donationGoal.GoalTitle;
+        
+        var updatedGoal = await _donationRepository.UpdateDonationGoal(existingGoal);
+        if (updatedGoal == null)
+        {
+            return NotFound();
+        }
+
+        return Ok(updatedGoal);
+    }
+
+    [HttpGet("goal/active/{creatorId}")]
+    public async Task<ActionResult<GoalModel>> GetActiveDonationGoalByCreatorId(int creatorId)
+    {
+        var goals = await _donationRepository.GetGoalsByCreatorId(creatorId);   
+        var activeGoal = goals.FirstOrDefault(g => g.IsGoalActive);
+        if (activeGoal == null)
+        {
+            return NotFound();
+        }
+
+        return Ok(activeGoal);
+    }
+
+    [HttpDelete("goal/{goalId}")]
+    public async Task<ActionResult<GoalModel>> DeleteDonationGoal(int goalId)
+    {
+        var goal = await _donationRepository.GetDonationGoalById(goalId);
+        if (goal == null)
+        {
+            return NotFound();
+        }
+
+        var deletedGoal = await _donationRepository.DeleteDonationGoal(goal);
+        if (deletedGoal == null)
+        {
+            return NotFound();
+        }
+
+        return Ok(deletedGoal);
+    }
+
+    [HttpPatch("goal/inactive/{goalId}")]
+    public async Task<ActionResult<GoalModel>> InactivateDonationGoal(int goalId)
+    {
+        var goal = await _donationRepository.GetDonationGoalById(goalId);
+        if (goal == null)
+        {
+            return NotFound( new { message = "Goal not found" });
+        }
+
+        goal.IsGoalActive = false;
+        goal.IsGoalReached = false;
+
+        var updatedGoal = await _donationRepository.UpdateDonationGoal(goal);
+        if (updatedGoal == null)
+        {
+            return NotFound();
+        }
+
+        return Ok(updatedGoal);
     }
 }

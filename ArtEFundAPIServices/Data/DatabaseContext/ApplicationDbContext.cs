@@ -13,29 +13,29 @@ public class ApplicationDbContext : DbContext
      *
      *  Added Users, Roles, Creators, Donations, Follows, Memberships, UserTypes, ContentTypes, Goals, RefreshTokens
      *
-     * TODO: Add DbSet for Post
-     * TODO: Add Likes to Post
-     * TODO: Add comments to Post
      *
      */
     public DbSet<UserModel> Users { get; set; }
     public DbSet<RoleModel> Roles { get; set; }
     public DbSet<CreatorModel> Creators { get; set; }
-
     public DbSet<DonationModel> Donations { get; set; }
 
     public DbSet<FollowModel> Follows { get; set; }
-
     public DbSet<MembershipModel> Memberships { get; set; }
     public DbSet<UserType> UserTypes { get; set; }
     public DbSet<ContentTypeModel> ContentTypes { get; set; }
-
     public DbSet<GoalModel> Goals { get; set; }
     public DbSet<RefreshTokenModel> RefreshTokens { get; set; }
 
     public DbSet<EnrolledMembershipModel> EnrolledMembership { get; set; }
 
     public DbSet<GoalModel> GoalModels { get; set; }
+
+    public DbSet<PostModel> Posts { get; set; }
+
+    public DbSet<PostLikeModel> PostLikes { get; set; }
+
+    public DbSet<PostCommentModel> PostComments { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -126,6 +126,19 @@ public class ApplicationDbContext : DbContext
             .WithMany(m => m.EnrolledMemberships)
             .HasForeignKey(em => em.MembershipId);
 
+        modelBuilder.Entity<PostModel>()
+            .HasMany(p => p.Likes)
+            .WithOne(l => l.Post)
+            .HasForeignKey(l => l.PostId);
+
+        modelBuilder.Entity<PostModel>()
+            .HasMany(p => p.Comments)
+            .WithOne(c => c.Post)
+            .HasForeignKey(c => c.PostId);
+
+        modelBuilder.Entity<PostModel>()
+            .Property(p => p.PostSlug)
+            .IsRequired();
 
         modelBuilder.Entity<RoleModel>().HasData(
             new RoleModel { RoleId = 1, RoleName = "admin" },
@@ -149,7 +162,11 @@ public class ApplicationDbContext : DbContext
         modelBuilder.Entity<GoalModel>()
             .Property(g => g.GoalAmount)
             .HasPrecision(18, 2);
-        
+
+        modelBuilder.Entity<GoalModel>()
+            .Property(g => g.GoalProgress)
+            .HasPrecision(18, 2);
+
         modelBuilder.Entity<EnrolledMembershipModel>()
             .Property(em => em.PaidAmount)
             .HasPrecision(18, 2);

@@ -8,4 +8,6 @@ public class MembershipViewDto
     public int CreatorId { get; set; }
     public decimal MembershipAmount { get; set; }
     public string MembershipBenefits { get; set; }
+
+    public bool IsDeleted { get; set; }
 }

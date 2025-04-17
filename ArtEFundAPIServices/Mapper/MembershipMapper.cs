@@ -15,7 +15,8 @@ public static class MembershipMapper
             MembershipName = model.MembershipName,
             CreatorId = model.CreatorId,
             MembershipAmount = model.MembershipAmount,
-            MembershipBenefits = model.MembershipBenefits
+            MembershipBenefits = model.MembershipBenefits,
+            IsDeleted = model.IsDeleted
         };
     }
 
@@ -28,7 +29,8 @@ public static class MembershipMapper
             MembershipName = dto.MembershipName,
             CreatorId = dto.CreatorId,
             MembershipAmount = dto.MembershipAmount,
-            MembershipBenefits = dto.MembershipBenefits
+            MembershipBenefits = dto.MembershipBenefits,
+            IsDeleted = false // Default value
         };
     }
 
@@ -63,6 +65,8 @@ public static class MembershipMapper
             UserName = model.User.UserName,
             MembershipName = model.Membership.MembershipName,
             CreatorId = model.Membership.CreatorId,
+            IsDeleted = model.Membership.IsDeleted,
+            MembershipTier = model.Membership.MembershipTier,
         };
     }
 

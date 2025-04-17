@@ -77,6 +77,7 @@ public class CreatorRepo : ICreatorInterface
         return await _context.Creators
             .Include(c => c.UserModel)
             .Include(c => c.Memberships)
+            .Include(c => c.Posts)
             // Include the UserModel navigation property
             .FirstOrDefaultAsync(c => c.UserModel.UserName == userName);
     }

@@ -9,5 +9,10 @@ public interface IDonationInterface
     Task<List<DonationModel>> GetDonationsByUserName(string userName);
     Task<DonationModel?> CreateDonation(DonationModel donation);
     Task<List<DonationModel>> GetDonationsByUserId(int userId);
+    Task<GoalModel> CreateDonationGoal(GoalModel donationGoal);
+    Task<GoalModel?> UpdateDonationGoal(GoalModel donationGoal);
+    Task<GoalModel?> DeleteDonationGoal(GoalModel donationGoal);
+    Task<List<GoalModel>> GetGoalsByCreatorId(int creatorId);
+    Task<GoalModel?> GetDonationGoalById(int id);
     
 }

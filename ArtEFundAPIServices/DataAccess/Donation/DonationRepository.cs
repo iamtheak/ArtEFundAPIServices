@@ -53,4 +53,36 @@ public class DonationRepository : IDonationInterface
             .Where(d => d.UserId == userId)
             .ToListAsync();
     }
+    
+    public async Task<GoalModel> CreateDonationGoal(GoalModel donationGoal)
+    {
+        await _context.Goals.AddAsync(donationGoal);
+        await _context.SaveChangesAsync();
+        return donationGoal;
+    }
+    public async Task<GoalModel?> UpdateDonationGoal(GoalModel donationGoal)
+    {
+        _context.Goals.Update(donationGoal);
+        await _context.SaveChangesAsync();
+        return donationGoal;
+    }
+    public async Task<GoalModel?> DeleteDonationGoal(GoalModel donationGoal)
+    {
+        _context.Goals.Remove(donationGoal);
+        await _context.SaveChangesAsync();
+        return donationGoal;
+    }
+    public async Task<List<GoalModel>> GetGoalsByCreatorId(int creatorId)
+    {
+        return await _context.Goals
+            .Where(g => g.CreatorId == creatorId)
+            .ToListAsync();
+    }
+    
+    public async Task<GoalModel?> GetDonationGoalById(int id)
+    {
+        return await _context.Goals
+            .FirstOrDefaultAsync(g => g.GoalId == id);
+    }
+   
 }

@@ -45,9 +45,9 @@ public static class CreatorMapper
             UserName = creator.UserModel?.UserName,
             ProfilePicture = creator.UserModel?.ProfilePicture,
             Role = creator.UserModel?.RoleModel?.RoleName, // Handle potential null
-            Goal = creator.Goals?.FirstOrDefault(g => g.IsGoalActve == true), // Handle potential null
+            Goal = creator.Goals?.FirstOrDefault(g => g.IsGoalActive == true), // Handle potential null
             HasMembership = creator.Memberships?.Any() ?? false,
-            HasPosts = creator.Donations?.Any() ?? false
+            HasPosts = creator.Posts?.Any() ?? false
         };
     }
 }

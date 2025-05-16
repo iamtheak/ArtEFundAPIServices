@@ -13,4 +13,9 @@ public interface ICreatorInterface
     public Task<bool> DeleteCreator(int id);
     public Task<ContentTypeModel?> GetContentTypeById(int id);
     public Task<List<ContentTypeModel>> GetContentTypes();
+    public Task<FollowModel?> GetFollowsByUserAndCreatorId(int userId, int creatorId);
+    public Task<List<FollowModel>> GetFollowsByUserId(int id);
+    public Task<List<FollowModel>> GetFollowsByCreatorId(int id);
+    public Task<Boolean> FollowCreator(FollowModel follow);
+    public Task<Boolean> UnfollowCreator(FollowModel follow);
 }

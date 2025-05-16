@@ -9,7 +9,7 @@ namespace ArtEFundAPIServices.DTO.Creator
         public string? CreatorBio { get; set; }
         public string? CreatorDescription { get; set; }
         public string? CreatorBanner { get; set; }
-        public string ContentType { get; set; } = "";
+        public int ContentType { get; set; }
         public GoalModel? Goal { get; set; }
 
         public bool HasMembership { get; set; }

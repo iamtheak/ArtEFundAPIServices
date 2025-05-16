@@ -1,4 +1,6 @@
-﻿using ArtEFundAPIServices.Data.Model;
+﻿using System.Net;
+using System.Net.Mail;
+using ArtEFundAPIServices.Data.Model;
 using ArtEFundAPIServices.DataAccess.RefreshToken;
 using ArtEFundAPIServices.DataAccess.User;
 using ArtEFundAPIServices.DTO;
@@ -48,6 +50,11 @@ public class AuthController : ControllerBase
                 return BadRequest("Invalid password");
             }
 
+            if (!userModel.IsVerified)
+            {
+                return BadRequest("User is not verified");
+            }
+
             var accessToken = TokenGenerator.GenerateToken(userModel.UserId,
                 _configuration["Jwt:SecretKey"] ?? Constants.DEFAULT_JWT_SECRET, _configuration["Jwt:Issuer"],
                 _configuration["Jwt:Audience"], userModel.RoleModel.RoleName);
@@ -89,6 +96,189 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost]
+    public async Task<IActionResult> ResendVerificationLink([FromBody] TokenDto tokenDto)
+    {
+        try
+        {
+            UserModel? user = await _userInterface.GetUserByVerificationToken(tokenDto.Token);
+
+            if (user == null)
+            {
+                return BadRequest("User not found");
+            }
+
+            if (user.IsVerified)
+            {
+                return BadRequest("User is already verified");
+            }
+
+            Guid verificationToken = Guid.NewGuid();
+
+            user.VerificationToken = verificationToken;
+            user.VerificationTokenExpiry = DateTime.Now.AddHours(1);
+            await _userInterface.UpdateUser(user);
+
+            String emailPass = _configuration["EmailPass"];
+
+            if (emailPass == null)
+            {
+                return BadRequest("Email password not set in configuration");
+            }
+
+            var mail = new MailMessage("adarshakarki33@gmail.com", user.Email)
+            {
+                Subject = "Verify Account",
+                Body =
+                    $"<h1>Verify your Art E Fund Account</h1> <a href='http://localhost:3000/verify-account?token={verificationToken}'>Click this link to verify</a>",
+                IsBodyHtml = true
+            };
+
+            using var smtpClient = new SmtpClient("smtp.gmail.com")
+            {
+                Port = 587,
+                Credentials = new NetworkCredential("adarshakarki33@gmail.com", "ozra tfaa xpcq adjt"),
+                EnableSsl = true,
+            };
+
+            await smtpClient.SendMailAsync(mail);
+
+            return NoContent();
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(ex.Message);
+        }
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> VerifyAccount([FromBody] TokenDto tokenDto)
+    {
+        try
+        {
+            String token = tokenDto.Token;
+
+            if (string.IsNullOrEmpty(token))
+            {
+                return BadRequest("Token is missing");
+            }
+
+            var verifyTokenDto = await VerifyUserToken(token);
+            if (verifyTokenDto.IsRevoked)
+            {
+                return BadRequest(verifyTokenDto.Message);
+            }
+
+            var user = verifyTokenDto.User;
+
+            user.IsVerified = true;
+            user.VerificationToken = null;
+            user.VerificationTokenExpiry = null;
+
+            await _userInterface.UpdateUser(user);
+
+            return Ok("Account verified successfully");
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(ex.Message);
+        }
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> ForgotPassword(ForgetPasswordDto forgotPasswordDto)
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(forgotPasswordDto.Email))
+            {
+                return BadRequest("Email is missing");
+            }
+
+            var user = await _userInterface.GetUserByEmail(forgotPasswordDto.Email);
+
+            if (user == null)
+            {
+                return NotFound("User not found");
+            }
+
+            var resetToken = Guid.NewGuid();
+
+            user.VerificationToken = resetToken;
+            user.VerificationTokenExpiry = DateTime.Now.AddHours(1);
+
+            await _userInterface.UpdateUser(user);
+
+            String emailPass = _configuration["EmailPass"];
+
+            if (emailPass == null)
+            {
+                return BadRequest("Email password not set in configuration");
+            }
+
+            var mail = new MailMessage("adarshakarki33@gmail.com", user.Email)
+            {
+                Subject = "Reset Password",
+                Body =
+                    $"<h1>Reset your password</h1> <a href='http://localhost:3000/update-password?token={resetToken}'>Click this link to reset your password</a>",
+                IsBodyHtml = true
+            };
+            using var smtpClient = new SmtpClient("smtp.gmail.com")
+            {
+                Port = 587,
+                Credentials = new NetworkCredential("adarshakarki33@gmail.com", emailPass),
+                EnableSsl = true,
+            };
+            await smtpClient.SendMailAsync(mail);
+
+            return Ok("Reset password email sent successfully");
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(ex.Message);
+        }
+    }
+
+
+    [HttpPost]
+    public async Task<IActionResult> UpdateForgotPassword(ForgetPasswordUpdateDto forgotPasswordDto)
+    {
+        try
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+
+            VerifyTokenDto verifyTokenDto = await VerifyUserToken(forgotPasswordDto.Token);
+
+            if (verifyTokenDto.IsRevoked)
+            {
+                return BadRequest(verifyTokenDto.Message);
+            }
+
+            var user = verifyTokenDto.User;
+
+            if (forgotPasswordDto.Password != forgotPasswordDto.ConfirmPassword)
+            {
+                return BadRequest("Passwords do not match");
+            }
+
+            user.PasswordHash = _passwordHasher.HashPassword(forgotPasswordDto.Password);
+            user.VerificationToken = null;
+            user.VerificationTokenExpiry = null;
+
+            await _userInterface.UpdateUser(user);
+
+            return Ok(true);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(ex.Message);
+        }
+    }
+
+    [HttpPost]
     public async Task<IActionResult> Register([FromBody] UserCreateDto userDto)
     {
         try
@@ -111,15 +301,20 @@ public class AuthController : ControllerBase
                 return BadRequest("User with this username already exists");
             }
 
+            var verificationToken = Guid.NewGuid();
+
             UserModel user = new UserModel()
             {
                 UserName = userDto.UserName,
                 Email = userDto.Email,
                 FirstName = userDto.FirstName,
                 LastName = userDto.LastName,
-                PasswordHash = _passwordHasher.HashPassword(userDto.Password)
+                PasswordHash = _passwordHasher.HashPassword(userDto.Password),
+                CreatedAt = DateTime.Now,
+                IsVerified = false,
+                VerificationToken = verificationToken,
+                VerificationTokenExpiry = DateTime.Now.AddHours(1),
             };
-
 
             List<UserType> userTypes = await _userInterface.GetUserTypes();
 
@@ -135,6 +330,30 @@ public class AuthController : ControllerBase
                 Data = userViewDto,
                 Message = "User registered successfully"
             };
+
+            String emailPass = _configuration["EmailPass"];
+
+            if (emailPass == null)
+            {
+                return BadRequest("Email password not set in configuration");
+            }
+
+            var mail = new MailMessage("adarshakarki33@gmail.com", user.Email)
+            {
+                Subject = "Verify Account",
+                Body =
+                    $"<h1>Verify your Art E Fund Account</h1> <a href='http://localhost:3000/verify-account?token={verificationToken}'>Click this link to verify</a>",
+                IsBodyHtml = true
+            };
+
+            using var smtpClient = new SmtpClient("smtp.gmail.com")
+            {
+                Port = 587,
+                Credentials = new NetworkCredential("adarshakarki33@gmail.com", "ozra tfaa xpcq adjt"),
+                EnableSsl = true,
+            };
+
+            await smtpClient.SendMailAsync(mail);
 
             return Ok(new { response });
         }
@@ -296,6 +515,68 @@ public class AuthController : ControllerBase
         catch (Exception ex)
         {
             return BadRequest(ex.Message);
+        }
+    }
+
+
+    private class VerifyTokenDto
+    {
+        public String Message { get; set; }
+        public Boolean IsRevoked { get; set; }
+        public UserModel? User { get; set; }
+    }
+
+    private async Task<VerifyTokenDto> VerifyUserToken(string token)
+    {
+        try
+        {
+            var verifyTokenDto = new VerifyTokenDto()
+            {
+                Message = "",
+                IsRevoked = true,
+                User = null
+            };
+
+            if (string.IsNullOrEmpty(token))
+            {
+                verifyTokenDto.Message = "Token is missing";
+                verifyTokenDto.IsRevoked = true;
+                return verifyTokenDto;
+            }
+
+            var user = await _userInterface.GetUserByVerificationToken(token);
+
+            if (user == null)
+            {
+                verifyTokenDto.Message = "User not found";
+                verifyTokenDto.IsRevoked = true;
+                return verifyTokenDto;
+            }
+
+            if (user.VerificationTokenExpiry < DateTime.Now)
+            {
+                verifyTokenDto.Message = "Token has expired";
+                verifyTokenDto.IsRevoked = true;
+                verifyTokenDto.User = user;
+
+                return verifyTokenDto;
+            }
+
+
+            verifyTokenDto.IsRevoked = false;
+            verifyTokenDto.Message = "Token is valid";
+            verifyTokenDto.User = user;
+
+            return verifyTokenDto;
+        }
+        catch (Exception ex)
+        {
+            return new VerifyTokenDto()
+            {
+                Message = ex.Message,
+                IsRevoked = true,
+                User = null
+            };
         }
     }
 }

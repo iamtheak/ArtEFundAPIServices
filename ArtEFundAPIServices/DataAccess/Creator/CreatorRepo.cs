@@ -82,6 +82,7 @@ public class CreatorRepo : ICreatorInterface
             .FirstOrDefaultAsync(c => c.UserModel.UserName == userName);
     }
 
+
     public async Task<ContentTypeModel?> GetContentTypeById(int id)
     {
         return await _context.ContentTypes.FirstOrDefaultAsync(x => x.ContentTypeId == id);
@@ -90,5 +91,62 @@ public class CreatorRepo : ICreatorInterface
     public async Task<List<ContentTypeModel>> GetContentTypes()
     {
         return await _context.ContentTypes.ToListAsync();
+    }
+
+    public async Task<bool> FollowCreator(FollowModel follow)
+    {
+        await _context.Follows.AddAsync(follow);
+        await _context.SaveChangesAsync();
+
+        return true;
+    }
+
+    public async Task<bool> UnfollowCreator(FollowModel follow)
+    {
+        var existingFollow = await _context.Follows
+            .FirstOrDefaultAsync(f => f.UserId == follow.UserId && f.CreatorId == follow.CreatorId);
+        if (existingFollow == null)
+        {
+            return false; // Follow relationship does not exist
+        }
+
+        _context.Follows.Remove(existingFollow);
+
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
+    public async Task<bool> IsFollowing(int userId, int creatorId)
+    {
+        return await _context.Follows.AnyAsync(f => f.UserId == userId && f.CreatorId == creatorId);
+    }
+
+    public async Task<List<FollowModel>> GetFollowsByCreatorId(int creatorId)
+    {
+        return await _context.Follows
+            .Include(f => f.User)
+            .Include(f => f.Creator)
+            .ThenInclude(c => c.UserModel)
+            .Where(f => f.CreatorId == creatorId)
+            .ToListAsync();
+    }
+
+    public async Task<List<FollowModel>> GetFollowsByUserId(int userId)
+    {
+        return await _context.Follows
+            .Include(f => f.User)
+            .Include(f => f.Creator)
+            .ThenInclude(c => c.UserModel)
+            .Where(f => f.UserId == userId)
+            .ToListAsync();
+    }
+
+    public async Task<FollowModel?> GetFollowsByUserAndCreatorId(int userId, int creatorId)
+    {
+        return await _context.Follows
+            .Include(f => f.User)
+            .Include(f => f.Creator)
+            .ThenInclude(c => c.UserModel)
+            .FirstOrDefaultAsync(f => f.UserId == userId && f.CreatorId == creatorId);
     }
 }

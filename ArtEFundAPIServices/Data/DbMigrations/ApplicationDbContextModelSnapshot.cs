@@ -40,6 +40,29 @@ namespace ArtEFundAPIServices.Data.DbMigrations
                     b.ToTable("ContentTypes");
                 });
 
+            modelBuilder.Entity("ArtEFundAPIServices.Data.Model.CreatorApiKeyModel", b =>
+                {
+                    b.Property<int>("CreatorApiId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("CreatorApiId"));
+
+                    b.Property<int>("CreatorId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("EncryptedApiKey")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("CreatorApiId");
+
+                    b.HasIndex("CreatorId")
+                        .IsUnique();
+
+                    b.ToTable("CreatorApiKeys");
+                });
+
             modelBuilder.Entity("ArtEFundAPIServices.Data.Model.CreatorModel", b =>
                 {
                     b.Property<int>("CreatorId")
@@ -64,6 +87,9 @@ namespace ArtEFundAPIServices.Data.DbMigrations
 
                     b.Property<string>("CreatorGoal")
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("ProfileVisits")
+                        .HasColumnType("int");
 
                     b.Property<int>("UserId")
                         .HasColumnType("int");
@@ -100,12 +126,18 @@ namespace ArtEFundAPIServices.Data.DbMigrations
                     b.Property<string>("DonationMessage")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<int>("PaymentId")
+                        .HasColumnType("int");
+
                     b.Property<int?>("UserId")
                         .HasColumnType("int");
 
                     b.HasKey("DonationId");
 
                     b.HasIndex("CreatorId");
+
+                    b.HasIndex("PaymentId")
+                        .IsUnique();
 
                     b.ToTable("Donations");
                 });
@@ -134,12 +166,18 @@ namespace ArtEFundAPIServices.Data.DbMigrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<int>("PaymentId")
+                        .HasColumnType("int");
+
                     b.Property<int>("UserId")
                         .HasColumnType("int");
 
                     b.HasKey("EnrolledMembershipId");
 
                     b.HasIndex("MembershipId");
+
+                    b.HasIndex("PaymentId")
+                        .IsUnique();
 
                     b.HasIndex("UserId");
 
@@ -239,6 +277,34 @@ namespace ArtEFundAPIServices.Data.DbMigrations
                     b.HasIndex("CreatorId");
 
                     b.ToTable("Memberships");
+                });
+
+            modelBuilder.Entity("ArtEFundAPIServices.Data.Model.PaymentModel", b =>
+                {
+                    b.Property<int>("PaymentId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("PaymentId"));
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("KhaltiPaymentId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("PaymentDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("PaymentStatus")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("PaymentId");
+
+                    b.ToTable("Payments");
                 });
 
             modelBuilder.Entity("ArtEFundAPIServices.Data.Model.PostCommentModel", b =>
@@ -431,6 +497,9 @@ namespace ArtEFundAPIServices.Data.DbMigrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("UserId"));
 
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("Email")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -440,6 +509,9 @@ namespace ArtEFundAPIServices.Data.DbMigrations
                         .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
+
+                    b.Property<bool>("IsVerified")
+                        .HasColumnType("bit");
 
                     b.Property<string>("LastName")
                         .IsRequired()
@@ -464,6 +536,12 @@ namespace ArtEFundAPIServices.Data.DbMigrations
 
                     b.Property<int>("UserTypeId")
                         .HasColumnType("int");
+
+                    b.Property<Guid?>("VerificationToken")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("VerificationTokenExpiry")
+                        .HasColumnType("datetime2");
 
                     b.HasKey("UserId");
 
@@ -509,6 +587,17 @@ namespace ArtEFundAPIServices.Data.DbMigrations
                         });
                 });
 
+            modelBuilder.Entity("ArtEFundAPIServices.Data.Model.CreatorApiKeyModel", b =>
+                {
+                    b.HasOne("ArtEFundAPIServices.Data.Model.CreatorModel", "Creator")
+                        .WithOne("ApiKey")
+                        .HasForeignKey("ArtEFundAPIServices.Data.Model.CreatorApiKeyModel", "CreatorId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("Creator");
+                });
+
             modelBuilder.Entity("ArtEFundAPIServices.Data.Model.CreatorModel", b =>
                 {
                     b.HasOne("ArtEFundAPIServices.Data.Model.ContentTypeModel", "ContentType")
@@ -536,7 +625,15 @@ namespace ArtEFundAPIServices.Data.DbMigrations
                         .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
 
+                    b.HasOne("ArtEFundAPIServices.Data.Model.PaymentModel", "Payment")
+                        .WithOne()
+                        .HasForeignKey("ArtEFundAPIServices.Data.Model.DonationModel", "PaymentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.Navigation("Creator");
+
+                    b.Navigation("Payment");
                 });
 
             modelBuilder.Entity("ArtEFundAPIServices.Data.Model.EnrolledMembershipModel", b =>
@@ -547,6 +644,12 @@ namespace ArtEFundAPIServices.Data.DbMigrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("ArtEFundAPIServices.Data.Model.PaymentModel", "Payment")
+                        .WithOne()
+                        .HasForeignKey("ArtEFundAPIServices.Data.Model.EnrolledMembershipModel", "PaymentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("ArtEFundAPIServices.Data.Model.UserModel", "User")
                         .WithMany("EnrolledMemberships")
                         .HasForeignKey("UserId")
@@ -554,6 +657,8 @@ namespace ArtEFundAPIServices.Data.DbMigrations
                         .IsRequired();
 
                     b.Navigation("Membership");
+
+                    b.Navigation("Payment");
 
                     b.Navigation("User");
                 });
@@ -638,7 +743,7 @@ namespace ArtEFundAPIServices.Data.DbMigrations
             modelBuilder.Entity("ArtEFundAPIServices.Data.Model.PostModel", b =>
                 {
                     b.HasOne("ArtEFundAPIServices.Data.Model.CreatorModel", "Creator")
-                        .WithMany()
+                        .WithMany("Posts")
                         .HasForeignKey("CreatorId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -674,6 +779,9 @@ namespace ArtEFundAPIServices.Data.DbMigrations
 
             modelBuilder.Entity("ArtEFundAPIServices.Data.Model.CreatorModel", b =>
                 {
+                    b.Navigation("ApiKey")
+                        .IsRequired();
+
                     b.Navigation("Donations");
 
                     b.Navigation("Followers");
@@ -681,6 +789,8 @@ namespace ArtEFundAPIServices.Data.DbMigrations
                     b.Navigation("Goals");
 
                     b.Navigation("Memberships");
+
+                    b.Navigation("Posts");
                 });
 
             modelBuilder.Entity("ArtEFundAPIServices.Data.Model.MembershipModel", b =>

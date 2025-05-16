@@ -20,18 +20,21 @@ public class UserModel
     [EmailAddress]
     [MaxLength(100)]
     public string Email { get; set; }
-
     [Required] [MaxLength(255)] public string PasswordHash { get; set; }
-
     [Required] [MaxLength(50)] public string UserName { get; set; }
-
+    
+    public bool IsVerified { get; set; } = false;
+    
+    public Guid? VerificationToken { get; set; }
+    
+    public DateTime? VerificationTokenExpiry { get; set; }
+    
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public string? ProfilePicture { get; set; } 
     // Navigation property for UserRoles
     [ForeignKey("RoleId")] public int RoleId { get; set; }
-
     [ForeignKey("UserType")] public int UserTypeId { get; set; }
     public RoleModel RoleModel { get; set; }
-
     public UserType UserType { get; set; }
 
     public ICollection<RefreshTokenModel> RefreshTokens { get; set; }

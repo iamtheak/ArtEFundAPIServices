@@ -1,9 +1,14 @@
-﻿using ArtEFundAPIServices.Data.Model;
+﻿using System.Net;
+using System.Text;
+using ArtEFundAPIServices.Data.Model;
 using ArtEFundAPIServices.DataAccess.Creator;
 using ArtEFundAPIServices.DataAccess.Donation;
+using ArtEFundAPIServices.DataAccess.Payment;
 using ArtEFundAPIServices.DataAccess.User;
+using ArtEFundAPIServices.DTO;
 using ArtEFundAPIServices.DTO.Donation;
 using Microsoft.AspNetCore.Mvc;
+using Newtonsoft.Json;
 
 namespace ArtEFundAPIServices.Controller;
 
@@ -14,13 +19,15 @@ public class DonationController : ControllerBase
     private readonly IDonationInterface _donationRepository;
     private readonly ICreatorInterface _creatorRepository;
     private readonly IUserInterface _userRepository;
+    private readonly IPaymentInterface _paymentRepository;
 
     public DonationController(IDonationInterface donationRepository, ICreatorInterface creatorRepository,
-        IUserInterface userRepository)
+        IUserInterface userRepository, IPaymentInterface paymentRepository)
     {
         _donationRepository = donationRepository;
         _creatorRepository = creatorRepository;
         _userRepository = userRepository;
+        _paymentRepository = paymentRepository;
     }
 
     [HttpGet("{id}")]
@@ -127,6 +134,198 @@ public class DonationController : ControllerBase
         return Ok(donationViewDtos);
     }
 
+    [HttpPost("khalti/initiate")]
+    public async Task<ActionResult<KhaltiDto>> KhaltiDonationInitiate(KhaltiDonationInitiateDto donationDto)
+    {
+        var url = "https://dev.khalti.com/api/v2/epayment/initiate/";
+
+        // Create purchase order ID with metadata
+        var purchaseOrderId = JsonConvert.SerializeObject(new
+        {
+            userId = donationDto.UserId ?? 0,
+            creatorId = donationDto.CreatorId,
+            donationType = "donation",
+            nanoId = Guid.NewGuid().ToString(),
+        });
+
+        // Setup default customer info
+        var customerName = "Anonymous";
+        var customerEmail = "anonymous@customer.com";
+        var customerPhone = "9800000000";
+
+        // If user is not anonymous, fetch their details
+        if (donationDto.UserId.HasValue && donationDto.UserId.Value > 0)
+        {
+            var user = await _userRepository.GetUserById(donationDto.UserId.Value);
+            if (user != null)
+            {
+                customerName = user.UserName;
+                customerEmail = user.Email ?? "user@artefund.com";
+            }
+        }
+
+        // Calculate amount in paisa (Khalti uses paisa, not rupees)
+        var amountInPaisa = (int)(donationDto.DonationAmount * 100);
+
+        var payload = new
+        {
+            return_url = "http://localhost:3000/donation-success",
+            website_url = "http://localhost:3000/",
+            amount = amountInPaisa.ToString(),
+            purchase_order_id = purchaseOrderId,
+            purchase_order_name = donationDto.DonationMessage ?? "No message", // Store message here
+            customer_info = new
+            {
+                name = customerName,
+                email = customerEmail,
+                phone = customerPhone
+            },
+            merchant_name = "ArtEFund",
+            merchant_extra = $"Donation to Creator #{donationDto.CreatorId}"
+        };
+
+        var jsonPayload = JsonConvert.SerializeObject(payload);
+        var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
+
+        var client = new HttpClient();
+        client.DefaultRequestHeaders.Add("Authorization", "key 98fed20dac3e4f549ee853503a124c0b");
+
+        try
+        {
+            var response = await client.PostAsync(url, content);
+            var responseContent = await response.Content.ReadAsStringAsync();
+
+
+            if (response.StatusCode != HttpStatusCode.OK)
+            {
+                return BadRequest($"Error with khalti please try again later");
+            }
+
+            var khaltidto = JsonConvert.DeserializeObject<KhaltiDto>(responseContent);
+
+
+            if (khaltidto == null)
+            {
+                return BadRequest("Failed to deserialize Khalti response");
+            }
+
+            return Ok(khaltidto);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(ex.Message);
+        }
+    }
+
+    [HttpPost("khalti/verify")]
+    public async Task<ActionResult<DonationViewDto>> VerifyKhaltiPayment([FromBody] KhaltiDonationVerifyDto donationDto)
+    {
+        // Verify the payment with Khalti
+        var url = "https://dev.khalti.com/api/v2/epayment/lookup/";
+        var payload = new { pidx = donationDto.KhaltiPaymentId };
+        var jsonPayload = JsonConvert.SerializeObject(payload);
+        var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
+
+        var client = new HttpClient();
+        client.DefaultRequestHeaders.Add("Authorization", "key 98fed20dac3e4f549ee853503a124c0b");
+
+        var response = await client.PostAsync(url, content);
+        if (!response.IsSuccessStatusCode)
+        {
+            return BadRequest("Payment verification failed");
+        }
+
+        var responseContent = await response.Content.ReadAsStringAsync();
+        var khaltiResponse = JsonConvert.DeserializeObject<KhaltiLookUpDto>(responseContent);
+
+        if (khaltiResponse == null)
+        {
+            return BadRequest("Failed to deserialize Khalti response");
+        }
+
+        // Check if payment is completed
+        if (khaltiResponse.Status.ToString() != "Completed")
+        {
+            return BadRequest($"Payment not completed. Status: {khaltiResponse.Status}");
+        }
+
+        var existingPayment = await _paymentRepository.GetPaymentByKhaltiId(donationDto.KhaltiPaymentId);
+
+        if (existingPayment != null)
+        {
+            return BadRequest("Payment already verified");
+        }
+
+        var creator = await _creatorRepository.GetCreatorById(donationDto.CreatorId);
+
+
+        if (creator == null)
+        {
+            BadRequest("This creator does not exist");
+        }
+
+
+        var user = await _userRepository.GetUserById(donationDto.UserId ?? 0);
+
+
+        if (user == null && donationDto.UserId != null && donationDto.UserId.Value > 0)
+        {
+            BadRequest("This user does not exist");
+        }
+
+        // Get the amount from Khalti response
+        decimal amount = (decimal)khaltiResponse.TotalAmount / 100m; // Convert paisa to rupees
+
+        // Create payment record
+        var payment = new PaymentModel
+        {
+            KhaltiPaymentId = donationDto.KhaltiPaymentId,
+            PaymentStatus = khaltiResponse.Status.ToString(),
+            PaymentDate = DateTime.Now,
+            Amount = (decimal)khaltiResponse.TotalAmount // Store in paisa for accuracy
+        };
+
+        var createdPayment = await _paymentRepository.CreatePayment(payment);
+
+        // Create donation with payment info
+        var donation = new DonationModel
+        {
+            DonationAmount = amount,
+            DonationMessage = donationDto.Message,
+            CreatorId = donationDto.CreatorId,
+            UserId = donationDto.UserId > 0 ? donationDto.CreatorId : null,
+            PaymentId = createdPayment.PaymentId
+        };
+
+        var createdDonation = await _donationRepository.CreateDonation(donation);
+
+        // Update goals
+        var goals = await _donationRepository.GetGoalsByCreatorId(donationDto.CreatorId);
+        var activeGoal = goals.FirstOrDefault(g => g.IsGoalActive && !g.IsGoalReached);
+        if (activeGoal != null)
+        {
+            activeGoal.GoalProgress += donation.DonationAmount;
+            if (activeGoal.GoalProgress >= activeGoal.GoalAmount)
+            {
+                activeGoal.IsGoalReached = true;
+            }
+
+            await _donationRepository.UpdateDonationGoal(activeGoal);
+        }
+
+        var donationViewDto = new DonationViewDto
+        {
+            DonationId = createdDonation.DonationId,
+            DonationDate = createdDonation.DonationDate,
+            DonationAmount = createdDonation.DonationAmount,
+            DonationMessage = createdDonation.DonationMessage,
+            CreatorId = createdDonation.CreatorId,
+            UserId = createdDonation.UserId,
+        };
+
+        return CreatedAtAction(nameof(GetDonationById), new { id = donationViewDto.DonationId }, donationViewDto);
+    }
+
     [HttpPost]
     public async Task<ActionResult<DonationViewDto>> CreateDonation(DonationCreateDto donationCreateDto)
     {
@@ -135,7 +334,7 @@ public class DonationController : ControllerBase
             DonationAmount = donationCreateDto.DonationAmount,
             DonationMessage = donationCreateDto.DonationMessage,
             CreatorId = donationCreateDto.CreatorId,
-            UserId = donationCreateDto.UserId ?? 0
+            UserId = donationCreateDto.UserId ?? 0,
         };
 
         var createdDonation = await _donationRepository.CreateDonation(donation);
@@ -247,10 +446,11 @@ public class DonationController : ControllerBase
         {
             return BadRequest(new { message = "Goal is not active" });
         }
+
         existingGoal.GoalDescription = donationGoal.GoalDescription;
         existingGoal.GoalAmount = donationGoal.GoalAmount;
         existingGoal.GoalTitle = donationGoal.GoalTitle;
-        
+
         var updatedGoal = await _donationRepository.UpdateDonationGoal(existingGoal);
         if (updatedGoal == null)
         {
@@ -263,7 +463,7 @@ public class DonationController : ControllerBase
     [HttpGet("goal/active/{creatorId}")]
     public async Task<ActionResult<GoalModel>> GetActiveDonationGoalByCreatorId(int creatorId)
     {
-        var goals = await _donationRepository.GetGoalsByCreatorId(creatorId);   
+        var goals = await _donationRepository.GetGoalsByCreatorId(creatorId);
         var activeGoal = goals.FirstOrDefault(g => g.IsGoalActive);
         if (activeGoal == null)
         {
@@ -297,7 +497,7 @@ public class DonationController : ControllerBase
         var goal = await _donationRepository.GetDonationGoalById(goalId);
         if (goal == null)
         {
-            return NotFound( new { message = "Goal not found" });
+            return NotFound(new { message = "Goal not found" });
         }
 
         goal.IsGoalActive = false;

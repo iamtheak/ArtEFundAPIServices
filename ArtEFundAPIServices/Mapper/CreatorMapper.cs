@@ -24,7 +24,6 @@ public static class CreatorMapper
             CreatorBio = creatorUpdateDto.CreatorBio,
             CreatorDescription = creatorUpdateDto.CreatorDescription,
             CreatorBanner = creatorUpdateDto.CreatorBanner,
-            CreatorGoal = creatorUpdateDto.CreatorGoal
         };
     }
 
@@ -37,9 +36,9 @@ public static class CreatorMapper
             CreatorBio = creator.CreatorBio,
             CreatorDescription = creator.CreatorDescription,
             CreatorId = creator.CreatorId,
-            ContentType = creator.ContentType?.ContentTypeName, // Handle potential null
+            ContentType = creator.ContentType?.ContentTypeId ?? 0, // Handle potential null
             Email = creator.UserModel?.Email, // Handle potential null
-            FirstName = creator.UserModel?.FirstName,
+            FirstName = creator.UserModel?.FirstName,   
             LastName = creator.UserModel?.LastName,
             UserId = creator.UserId,
             UserName = creator.UserModel?.UserName,

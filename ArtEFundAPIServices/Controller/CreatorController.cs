@@ -1,8 +1,11 @@
-﻿using ArtEFundAPIServices.Data.Model;
+﻿using System.Security.Claims;
+using ArtEFundAPIServices.Data.Model;
 using ArtEFundAPIServices.DataAccess.Creator;
+using ArtEFundAPIServices.DataAccess.CreatorApiKey;
 using ArtEFundAPIServices.DataAccess.User;
 using ArtEFundAPIServices.DTO.Creator;
 using ArtEFundAPIServices.Mapper;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ArtEFundAPIServices.Controller;
@@ -13,11 +16,14 @@ public class CreatorController : ControllerBase
 {
     private readonly ICreatorInterface _creatorInterface;
     private readonly IUserInterface _userInterface;
+    private readonly ICreatorApiKeyInterface _creatorApiKeyInterface;
 
-    public CreatorController(ICreatorInterface creatorInterface, IUserInterface userInterface)
+    public CreatorController(ICreatorInterface creatorInterface, IUserInterface userInterface,
+        ICreatorApiKeyInterface creatorApiKeyInterface)
     {
         _creatorInterface = creatorInterface;
         _userInterface = userInterface;
+        _creatorApiKeyInterface = creatorApiKeyInterface;
     }
 
     // GET api/creators
@@ -156,7 +162,7 @@ public class CreatorController : ControllerBase
         }
     }
 
-    // PUT api/creators/{id}
+    // PUT api/creators/{id}    
     [HttpPut("{id}")]
     public async Task<ActionResult<CreatorViewDto>> UpdateCreator(int id, [FromBody] CreatorUpdateDto creatorDto)
     {
@@ -178,7 +184,6 @@ public class CreatorController : ControllerBase
             existingCreator.CreatorBio = creatorDto.CreatorBio;
             existingCreator.CreatorDescription = creatorDto.CreatorDescription;
             existingCreator.CreatorBanner = creatorDto.CreatorBanner;
-            existingCreator.CreatorGoal = creatorDto.CreatorGoal;
             existingCreator.ContentTypeId =
                 creatorDto.ContentTypeId > 0 ? creatorDto.ContentTypeId : existingCreator.ContentTypeId;
 
@@ -210,5 +215,366 @@ public class CreatorController : ControllerBase
         {
             return StatusCode(500, new { message = "Internal server error", error = e.Message });
         }
+    }
+
+    // GET api/creators/api-key/{creatorId}/
+    [HttpGet("api-key/{creatorId}")]
+    [Authorize]
+    public async Task<ActionResult<ApiKeyResponseDto>> GetCreatorApiKey(int creatorId)
+    {
+        try
+        {
+            // Check if creator exists
+            var creator = await _creatorInterface.GetCreatorById(creatorId);
+            if (creator == null)
+            {
+                return NotFound(new { message = $"Creator with ID {creatorId} not found" });
+            }
+
+            // Verify current user has permission
+            int userId = 0;
+            try
+            {
+                userId = GetUserIdFromJwt();
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Unauthorized(new { message = "User ID not found in JWT" });
+            }
+
+            // Check if user is the creator or has admin role
+            var currentCreator = await _creatorInterface.GetCreatorByUserId(userId);
+            if (currentCreator == null || (currentCreator.CreatorId != creatorId && !User.IsInRole("Admin")))
+            {
+                return Forbid();
+            }
+
+            // Check if API key exists
+            var hasApiKey = await _creatorApiKeyInterface.HasApiKey(creatorId);
+            var apiKey = hasApiKey ? await _creatorApiKeyInterface.GetApiKeyForCreator(creatorId) : null;
+
+            return Ok(new ApiKeyResponseDto { ApiKey = apiKey, HasApiKey = hasApiKey });
+        }
+        catch (Exception e)
+        {
+            return StatusCode(500, new { message = "Internal server error", error = e.Message });
+        }
+    }
+
+    // POST api/creators/{creatorId}/api-key
+    [HttpPost("api-key/{creatorId}")]
+    [Authorize]
+    public async Task<ActionResult> SetCreatorApiKey(int creatorId, [FromBody] ApiKeyRequestDto request)
+    {
+        try
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            // Check if creator exists
+            var creator = await _creatorInterface.GetCreatorById(creatorId);
+            if (creator == null)
+            {
+                return NotFound(new { message = $"Creator with ID {creatorId} not found" });
+            }
+
+            // Verify current user has permission
+            int userId = 0;
+            try
+            {
+                userId = GetUserIdFromJwt();
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Unauthorized(new { message = "User ID not found in JWT" });
+            }
+
+            // Check if user is the creator or has admin role
+            var currentCreator = await _creatorInterface.GetCreatorByUserId(userId);
+            if (currentCreator == null || (currentCreator.CreatorId != creatorId && !User.IsInRole("Admin")))
+            {
+                return Forbid();
+            }
+
+            await _creatorApiKeyInterface.SaveApiKeyForCreator(creatorId, request.ApiKey);
+            return Ok(new { message = "API key saved successfully" });
+        }
+        catch (Exception e)
+        {
+            return StatusCode(500, new { message = "Internal server error", error = e.Message });
+        }
+    }
+
+    // DELETE api/creators/{creatorId}/api-key
+    [HttpDelete("api-key/{creatorId}")]
+    [Authorize]
+    public async Task<ActionResult> DeleteCreatorApiKey(int creatorId)
+    {
+        try
+        {
+            // Check if creator exists
+            var creator = await _creatorInterface.GetCreatorById(creatorId);
+            if (creator == null)
+            {
+                return NotFound(new { message = $"Creator with ID {creatorId} not found" });
+            }
+
+            // Verify current user has permission
+            int userId = 0;
+            try
+            {
+                userId = GetUserIdFromJwt();
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Unauthorized(new { message = "User ID not found in JWT" });
+            }
+
+            // Check if user is the creator or has admin role
+            var currentCreator = await _creatorInterface.GetCreatorByUserId(userId);
+            if (currentCreator == null || (currentCreator.CreatorId != creatorId && !User.IsInRole("Admin")))
+            {
+                return Forbid();
+            }
+
+            await _creatorApiKeyInterface.DeleteApiKeyForCreator(creatorId);
+            return Ok(new { message = "API key removed successfully" });
+        }
+        catch (Exception e)
+        {
+            return StatusCode(500, new { message = "Internal server error", error = e.Message });
+        }
+    }
+
+    [HttpPatch("profile-visit/{creatorId}")]
+    public async Task<Boolean> CreatorProfileVisit(int creatorId)
+    {
+        try
+        {
+            var creator = await _creatorInterface.GetCreatorById(creatorId);
+            if (creator == null)
+            {
+                return false;
+            }
+
+            creator.ProfileVisits += 1;
+            await _creatorInterface.UpdateCreator(creator);
+            return true;
+        }
+        catch (Exception e)
+        {
+            Console.Write(e);
+            return false;
+        }
+    }
+
+    [HttpPost("follow/{creatorId}/{userId}")]
+    public async Task<IActionResult> FollowCreator(int creatorId, int userId)
+    {
+        try
+        {
+            var creator = await _creatorInterface.GetCreatorById(creatorId);
+            if (creator == null)
+            {
+                return BadRequest(new { message = $"Creator with ID {creatorId} not found" });
+            }
+
+            var user = await _userInterface.GetUserById(userId);
+            if (user == null)
+            {
+                return BadRequest(new { message = $"User with ID {userId} not found" });
+            }
+
+            if (creator.UserId == user.UserId)
+            {
+                return BadRequest(new { message = "You cannot follow yourself" });
+            }
+
+            var follow = new FollowModel
+            {
+                CreatorId = creatorId,
+                UserId = userId,
+                FollowDate = DateTime.UtcNow
+            };
+
+            var result = await _creatorInterface.FollowCreator(follow);
+
+            if (result)
+            {
+                return Ok(new { message = "Followed successfully" });
+            }
+            else
+            {
+                return BadRequest(new { message = "Failed to follow creator" });
+            }
+        }
+        catch (Exception e)
+        {
+            return StatusCode(500, new { message = e.Message });
+        }
+    }
+
+    [HttpDelete("unfollow/{creatorId}/{userId}")]
+    public async Task<IActionResult> UnfollowCreator(int creatorId, int userId)
+    {
+        try
+        {
+            var creator = await _creatorInterface.GetCreatorById(creatorId);
+            if (creator == null)
+            {
+                return BadRequest(new { message = $"Creator with ID {creatorId} not found" });
+            }
+
+            var user = await _userInterface.GetUserById(userId);
+            if (user == null)
+            {
+                return BadRequest(new { message = $"User with ID {userId} not found" });
+            }
+
+            var follow = new FollowModel
+            {
+                CreatorId = creatorId,
+                UserId = userId
+            };
+
+            var result = await _creatorInterface.UnfollowCreator(follow);
+
+            if (result)
+            {
+                return Ok(new { message = "Unfollowed successfully" });
+            }
+            else
+            {
+                return BadRequest(new { message = "Failed to unfollow creator" });
+            }
+        }
+        catch (Exception e)
+        {
+            return StatusCode(500, new { message = e.Message });
+        }
+    }
+
+    [HttpGet("is-following/{creatorId}/{userId}")]
+    public async Task<IActionResult> IsFollowing(int creatorId, int userId)
+    {
+        try
+        {
+            var creator = await _creatorInterface.GetCreatorById(creatorId);
+            if (creator == null)
+            {
+                return BadRequest(new { message = $"Creator with ID {creatorId} not found" });
+            }
+
+            var user = await _userInterface.GetUserById(userId);
+            if (user == null)
+            {
+                return BadRequest(new { message = $"User with ID {userId} not found" });
+            }
+
+            var followModel = await _creatorInterface.GetFollowsByUserAndCreatorId(userId, creatorId);
+
+            if (followModel == null)
+            {
+                return Ok(false);
+            }
+
+            return Ok(true);
+        }
+        catch (Exception e)
+        {
+            return StatusCode(500, new { message = e.Message });
+        }
+    }
+
+    [HttpGet("followers/{creatorId}")]
+    public async Task<IActionResult> GetFollowers(int creatorId)
+    {
+        try
+        {
+            var creator = await _creatorInterface.GetCreatorById(creatorId);
+            if (creator == null)
+            {
+                return BadRequest(new { message = $"Creator with ID {creatorId} not found" });
+            }
+
+            var followers = await _creatorInterface.GetFollowsByCreatorId(creatorId);
+            var followerDtos = followers.Select(f => new FollowerDto
+            {
+                CreatorId = f.CreatorId,
+                UserId = f.UserId,
+                FollowerUserName = f.User?.UserName,
+                FollowerAvatarUrl = f.User?.ProfilePicture,
+            }).ToList();
+
+            return Ok(followerDtos);
+        }
+        catch (Exception e)
+        {
+            return StatusCode(500, new { message = e.Message });
+        }
+    }
+
+    [HttpGet("follower-count/{creatorId}")]
+    public async Task<IActionResult> GetFollowerCount(int creatorId)
+    {
+        try
+        {
+            var creator = await _creatorInterface.GetCreatorById(creatorId);
+            if (creator == null)
+            {
+                return NotFound(new { message = $"Creator with ID {creatorId} not found" });
+            }
+
+            var followers = await _creatorInterface.GetFollowsByCreatorId(creatorId);
+            var followerCount = followers.Count;
+
+            return Ok(followerCount);
+        }
+        catch (Exception e)
+        {
+            return StatusCode(500, new { message = e.Message });
+        }
+    }
+
+    [HttpGet("following/{userId}")]
+    public async Task<IActionResult> GetFollowingsByUser(int userId)
+    {
+        try
+        {
+            var user = await _userInterface.GetUserById(userId);
+            if (user == null)
+            {
+                return BadRequest(new { message = $"User with ID {userId} not found" });
+            }
+
+            var followings = await _creatorInterface.GetFollowsByUserId(userId);
+            var followingDtos = followings.Select(f => new FollowerDto()
+            {
+                CreatorId = f.CreatorId,
+                UserId = f.UserId,
+                FollowingUserName = f.Creator?.UserModel?.UserName,
+                FollowingAvatarUrl = f.Creator?.UserModel?.ProfilePicture,
+            }).ToList();
+
+            return Ok(followingDtos);
+        }
+        catch (Exception e)
+        {
+            return StatusCode(500, new { message = e.Message });
+        }
+    }
+
+
+    private int GetUserIdFromJwt()
+    {
+        var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (userIdClaim == null || !int.TryParse(userIdClaim, out int userId))
+        {
+            throw new UnauthorizedAccessException("User ID not found in JWT");
+        }
+
+        return userId;
     }
 }

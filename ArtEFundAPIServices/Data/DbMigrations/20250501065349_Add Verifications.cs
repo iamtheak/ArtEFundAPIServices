@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace ArtEFundAPIServices.Data.DbMigrations
 {
     /// <inheritdoc />
-    public partial class Initial : Migration
+    public partial class AddVerifications : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -24,6 +24,22 @@ namespace ArtEFundAPIServices.Data.DbMigrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_ContentTypes", x => x.ContentTypeId);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "Payments",
+                columns: table => new
+                {
+                    PaymentId = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    Amount = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    KhaltiPaymentId = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    PaymentStatus = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    PaymentDate = table.Column<DateTime>(type: "datetime2", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Payments", x => x.PaymentId);
                 });
 
             migrationBuilder.CreateTable(
@@ -63,6 +79,10 @@ namespace ArtEFundAPIServices.Data.DbMigrations
                     Email = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
                     PasswordHash = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: false),
                     UserName = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
+                    IsVerified = table.Column<bool>(type: "bit", nullable: false),
+                    VerificationToken = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    VerificationTokenExpiry = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
                     ProfilePicture = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     RoleId = table.Column<int>(type: "int", nullable: false),
                     UserTypeId = table.Column<int>(type: "int", nullable: false)
@@ -135,6 +155,25 @@ namespace ArtEFundAPIServices.Data.DbMigrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "CreatorApiKeys",
+                columns: table => new
+                {
+                    CreatorApiId = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    CreatorId = table.Column<int>(type: "int", nullable: false),
+                    EncryptedApiKey = table.Column<string>(type: "nvarchar(max)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_CreatorApiKeys", x => x.CreatorApiId);
+                    table.ForeignKey(
+                        name: "FK_CreatorApiKeys_Creators_CreatorId",
+                        column: x => x.CreatorId,
+                        principalTable: "Creators",
+                        principalColumn: "CreatorId");
+                });
+
+            migrationBuilder.CreateTable(
                 name: "Donations",
                 columns: table => new
                 {
@@ -144,6 +183,7 @@ namespace ArtEFundAPIServices.Data.DbMigrations
                     DonationAmount = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
                     DonationMessage = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     CreatorId = table.Column<int>(type: "int", nullable: false),
+                    PaymentId = table.Column<int>(type: "int", nullable: false),
                     UserId = table.Column<int>(type: "int", nullable: true)
                 },
                 constraints: table =>
@@ -154,6 +194,12 @@ namespace ArtEFundAPIServices.Data.DbMigrations
                         column: x => x.CreatorId,
                         principalTable: "Creators",
                         principalColumn: "CreatorId");
+                    table.ForeignKey(
+                        name: "FK_Donations_Payments_PaymentId",
+                        column: x => x.PaymentId,
+                        principalTable: "Payments",
+                        principalColumn: "PaymentId",
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -187,12 +233,13 @@ namespace ArtEFundAPIServices.Data.DbMigrations
                 {
                     GoalId = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
+                    GoalTitle = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
                     CreatorId = table.Column<int>(type: "int", nullable: false),
                     GoalAmount = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
-                    GoalProgress = table.Column<float>(type: "real", nullable: false),
-                    GoalDescription = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    GoalProgress = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    GoalDescription = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: true),
                     IsGoalReached = table.Column<bool>(type: "bit", nullable: false),
-                    IsGoalActve = table.Column<bool>(type: "bit", nullable: false)
+                    IsGoalActive = table.Column<bool>(type: "bit", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -212,6 +259,7 @@ namespace ArtEFundAPIServices.Data.DbMigrations
                     MembershipId = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
                     MembershipTier = table.Column<int>(type: "int", nullable: false),
+                    IsDeleted = table.Column<bool>(type: "bit", nullable: false),
                     MembershipName = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     CreatorId = table.Column<int>(type: "int", nullable: false),
                     MembershipAmount = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
@@ -229,13 +277,43 @@ namespace ArtEFundAPIServices.Data.DbMigrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "EnrolledMembershipModels",
+                name: "Posts",
+                columns: table => new
+                {
+                    PostId = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    PostSlug = table.Column<string>(type: "nvarchar(21)", maxLength: 21, nullable: false),
+                    Title = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
+                    Content = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    ImageUrl = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    IsDeleted = table.Column<bool>(type: "bit", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    IsMembersOnly = table.Column<bool>(type: "bit", nullable: false),
+                    MembershipTier = table.Column<int>(type: "int", nullable: true),
+                    Views = table.Column<int>(type: "int", nullable: false),
+                    CreatorId = table.Column<int>(type: "int", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Posts", x => x.PostId);
+                    table.ForeignKey(
+                        name: "FK_Posts_Creators_CreatorId",
+                        column: x => x.CreatorId,
+                        principalTable: "Creators",
+                        principalColumn: "CreatorId",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "EnrolledMembership",
                 columns: table => new
                 {
                     EnrolledMembershipId = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
                     UserId = table.Column<int>(type: "int", nullable: false),
                     MembershipId = table.Column<int>(type: "int", nullable: false),
+                    PaymentId = table.Column<int>(type: "int", nullable: false),
                     EnrolledDate = table.Column<DateTime>(type: "datetime2", nullable: false),
                     ExpiryDate = table.Column<DateTime>(type: "datetime2", nullable: true),
                     IsActive = table.Column<bool>(type: "bit", nullable: false),
@@ -243,15 +321,78 @@ namespace ArtEFundAPIServices.Data.DbMigrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_EnrolledMembershipModels", x => x.EnrolledMembershipId);
+                    table.PrimaryKey("PK_EnrolledMembership", x => x.EnrolledMembershipId);
                     table.ForeignKey(
-                        name: "FK_EnrolledMembershipModels_Memberships_MembershipId",
+                        name: "FK_EnrolledMembership_Memberships_MembershipId",
                         column: x => x.MembershipId,
                         principalTable: "Memberships",
                         principalColumn: "MembershipId",
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
-                        name: "FK_EnrolledMembershipModels_Users_UserId",
+                        name: "FK_EnrolledMembership_Payments_PaymentId",
+                        column: x => x.PaymentId,
+                        principalTable: "Payments",
+                        principalColumn: "PaymentId",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_EnrolledMembership_Users_UserId",
+                        column: x => x.UserId,
+                        principalTable: "Users",
+                        principalColumn: "UserId",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "PostComments",
+                columns: table => new
+                {
+                    CommentId = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    PostId = table.Column<int>(type: "int", nullable: false),
+                    UserId = table.Column<int>(type: "int", nullable: false),
+                    CommentText = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: false),
+                    CommentedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    IsDeleted = table.Column<bool>(type: "bit", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_PostComments", x => x.CommentId);
+                    table.ForeignKey(
+                        name: "FK_PostComments_Posts_PostId",
+                        column: x => x.PostId,
+                        principalTable: "Posts",
+                        principalColumn: "PostId",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_PostComments_Users_UserId",
+                        column: x => x.UserId,
+                        principalTable: "Users",
+                        principalColumn: "UserId",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "PostLikes",
+                columns: table => new
+                {
+                    LikeId = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    PostId = table.Column<int>(type: "int", nullable: false),
+                    UserId = table.Column<int>(type: "int", nullable: false),
+                    LikedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_PostLikes", x => x.LikeId);
+                    table.ForeignKey(
+                        name: "FK_PostLikes_Posts_PostId",
+                        column: x => x.PostId,
+                        principalTable: "Posts",
+                        principalColumn: "PostId",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_PostLikes_Users_UserId",
                         column: x => x.UserId,
                         principalTable: "Users",
                         principalColumn: "UserId",
@@ -278,6 +419,12 @@ namespace ArtEFundAPIServices.Data.DbMigrations
                 });
 
             migrationBuilder.CreateIndex(
+                name: "IX_CreatorApiKeys_CreatorId",
+                table: "CreatorApiKeys",
+                column: "CreatorId",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Creators_ContentTypeId",
                 table: "Creators",
                 column: "ContentTypeId",
@@ -295,13 +442,25 @@ namespace ArtEFundAPIServices.Data.DbMigrations
                 column: "CreatorId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_EnrolledMembershipModels_MembershipId",
-                table: "EnrolledMembershipModels",
+                name: "IX_Donations_PaymentId",
+                table: "Donations",
+                column: "PaymentId",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_EnrolledMembership_MembershipId",
+                table: "EnrolledMembership",
                 column: "MembershipId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_EnrolledMembershipModels_UserId",
-                table: "EnrolledMembershipModels",
+                name: "IX_EnrolledMembership_PaymentId",
+                table: "EnrolledMembership",
+                column: "PaymentId",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_EnrolledMembership_UserId",
+                table: "EnrolledMembership",
                 column: "UserId");
 
             migrationBuilder.CreateIndex(
@@ -317,6 +476,31 @@ namespace ArtEFundAPIServices.Data.DbMigrations
             migrationBuilder.CreateIndex(
                 name: "IX_Memberships_CreatorId",
                 table: "Memberships",
+                column: "CreatorId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_PostComments_PostId",
+                table: "PostComments",
+                column: "PostId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_PostComments_UserId",
+                table: "PostComments",
+                column: "UserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_PostLikes_PostId",
+                table: "PostLikes",
+                column: "PostId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_PostLikes_UserId",
+                table: "PostLikes",
+                column: "UserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Posts_CreatorId",
+                table: "Posts",
                 column: "CreatorId");
 
             migrationBuilder.CreateIndex(
@@ -351,10 +535,13 @@ namespace ArtEFundAPIServices.Data.DbMigrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
+                name: "CreatorApiKeys");
+
+            migrationBuilder.DropTable(
                 name: "Donations");
 
             migrationBuilder.DropTable(
-                name: "EnrolledMembershipModels");
+                name: "EnrolledMembership");
 
             migrationBuilder.DropTable(
                 name: "Follows");
@@ -363,10 +550,22 @@ namespace ArtEFundAPIServices.Data.DbMigrations
                 name: "GoalModel");
 
             migrationBuilder.DropTable(
+                name: "PostComments");
+
+            migrationBuilder.DropTable(
+                name: "PostLikes");
+
+            migrationBuilder.DropTable(
                 name: "RefreshTokens");
 
             migrationBuilder.DropTable(
                 name: "Memberships");
+
+            migrationBuilder.DropTable(
+                name: "Payments");
+
+            migrationBuilder.DropTable(
+                name: "Posts");
 
             migrationBuilder.DropTable(
                 name: "Creators");

@@ -18,7 +18,9 @@ public class DonationModel
 
     public string? DonationMessage { get; set; }
     public int CreatorId { get; set; }
-
+    public int PaymentId { get; set; }
     public int? UserId { get; set; }
     public CreatorModel Creator { get; set; }
+
+    public PaymentModel Payment { get; set; }
 }

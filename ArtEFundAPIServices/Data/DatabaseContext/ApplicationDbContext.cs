@@ -26,7 +26,6 @@ public class ApplicationDbContext : DbContext
     public DbSet<ContentTypeModel> ContentTypes { get; set; }
     public DbSet<GoalModel> Goals { get; set; }
     public DbSet<RefreshTokenModel> RefreshTokens { get; set; }
-
     public DbSet<EnrolledMembershipModel> EnrolledMembership { get; set; }
 
     public DbSet<GoalModel> GoalModels { get; set; }
@@ -36,6 +35,10 @@ public class ApplicationDbContext : DbContext
     public DbSet<PostLikeModel> PostLikes { get; set; }
 
     public DbSet<PostCommentModel> PostComments { get; set; }
+
+    public DbSet<PaymentModel> Payments { get; set; }
+
+    public DbSet<CreatorApiKeyModel> CreatorApiKeys { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -86,6 +89,12 @@ public class ApplicationDbContext : DbContext
             .HasForeignKey(g => g.CreatorId)
             .OnDelete(DeleteBehavior.Cascade);
 
+        modelBuilder.Entity<CreatorApiKeyModel>()
+            .HasOne(capi => capi.Creator)
+            .WithOne(c => c.ApiKey)
+            .HasForeignKey<CreatorApiKeyModel>(capi => capi.CreatorId)
+            .OnDelete(DeleteBehavior.NoAction);
+
         modelBuilder.Entity<FollowModel>()
             .HasKey(f => new { f.UserId, f.CreatorId });
 
@@ -107,6 +116,11 @@ public class ApplicationDbContext : DbContext
             .OnDelete(DeleteBehavior.NoAction)
             .HasForeignKey(d => d.CreatorId);
 
+        modelBuilder.Entity<DonationModel>()
+            .HasOne(d => d.Payment)
+            .WithOne()
+            .HasForeignKey<DonationModel>(d => d.PaymentId)
+            .OnDelete(DeleteBehavior.Restrict);
 
         modelBuilder.Entity<MembershipModel>()
             .HasOne(m => m.Creator)
@@ -114,7 +128,6 @@ public class ApplicationDbContext : DbContext
             .HasForeignKey(m => m.CreatorId)
             .OnDelete(DeleteBehavior.Cascade)
             .IsRequired();
-
 
         modelBuilder.Entity<EnrolledMembershipModel>()
             .HasOne(em => em.User)
@@ -125,6 +138,13 @@ public class ApplicationDbContext : DbContext
             .HasOne(em => em.Membership)
             .WithMany(m => m.EnrolledMemberships)
             .HasForeignKey(em => em.MembershipId);
+
+        modelBuilder.Entity<EnrolledMembershipModel>()
+            .HasOne(em => em.Payment)
+            .WithOne()
+            .HasForeignKey<EnrolledMembershipModel>(em => em.PaymentId)
+            .OnDelete(DeleteBehavior.Restrict);
+
 
         modelBuilder.Entity<PostModel>()
             .HasMany(p => p.Likes)
@@ -139,6 +159,7 @@ public class ApplicationDbContext : DbContext
         modelBuilder.Entity<PostModel>()
             .Property(p => p.PostSlug)
             .IsRequired();
+
 
         modelBuilder.Entity<RoleModel>().HasData(
             new RoleModel { RoleId = 1, RoleName = "admin" },
@@ -169,6 +190,10 @@ public class ApplicationDbContext : DbContext
 
         modelBuilder.Entity<EnrolledMembershipModel>()
             .Property(em => em.PaidAmount)
+            .HasPrecision(18, 2);
+
+        modelBuilder.Entity<PaymentModel>()
+            .Property(pm => pm.Amount)
             .HasPrecision(18, 2);
     }
 

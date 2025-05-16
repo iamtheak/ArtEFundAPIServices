@@ -14,4 +14,5 @@ public interface IUserInterface
     Task<List<UserType>> GetUserTypes();
     Task<List<RoleModel>> GetRoles();
     Task<RoleModel?> GetRoleById(int id);
+    Task<UserModel?> GetUserByVerificationToken(string token);
 }

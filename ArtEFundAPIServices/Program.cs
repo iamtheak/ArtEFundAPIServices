@@ -3,8 +3,11 @@ using System.Text.Json;
 using ArtEFundAPIServices.Data.DatabaseContext;
 using ArtEFundAPIServices.DataAccess.ContentType;
 using ArtEFundAPIServices.DataAccess.Creator;
+using ArtEFundAPIServices.DataAccess.CreatorApiKey;
 using ArtEFundAPIServices.DataAccess.Donation;
+using ArtEFundAPIServices.DataAccess.Encryption;
 using ArtEFundAPIServices.DataAccess.Membership;
+using ArtEFundAPIServices.DataAccess.Payment;
 using ArtEFundAPIServices.DataAccess.Post;
 using ArtEFundAPIServices.DataAccess.RefreshToken;
 using ArtEFundAPIServices.DataAccess.User;
@@ -19,6 +22,8 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 
 builder.Services.AddLogging();
+builder.Services.AddScoped<IEncryptionService, AesEncryptionService>();
+builder.Services.AddScoped<ICreatorApiKeyInterface, CreatorApiKeyRepo>();
 builder.Services.AddScoped<IUserInterface, UserRepo>();
 builder.Services.AddScoped<IRefreshTokenInterface, RefreshTokenRepo>();
 builder.Services.AddScoped<IContentTypeInterface, ContentTypeRepo>();
@@ -26,6 +31,7 @@ builder.Services.AddScoped<ICreatorInterface, CreatorRepo>();
 builder.Services.AddScoped<IMembershipInterface, MembershipRepository>();
 builder.Services.AddScoped<IDonationInterface, DonationRepository>();
 builder.Services.AddScoped<IPostInterface, PostRepository>();
+builder.Services.AddScoped<IPaymentInterface, PaymentRepo>();
 
 builder.Services.AddSingleton<IPasswordHasher, PasswordHasher>();
 builder.Services.AddHttpContextAccessor();

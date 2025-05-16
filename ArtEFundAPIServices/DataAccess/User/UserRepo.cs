@@ -101,4 +101,10 @@ public class UserRepo : IUserInterface
     {
         return await _context.Roles.FindAsync(id);
     }
+    
+    public async Task<UserModel?> GetUserByVerificationToken(string token)
+    {
+        return await _context.Users
+            .SingleOrDefaultAsync(u => u.VerificationToken.ToString() == token);
+    }
 }

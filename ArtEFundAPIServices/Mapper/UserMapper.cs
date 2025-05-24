@@ -42,10 +42,11 @@ public static class UserMapper
             FirstName = userModel.FirstName,
             LastName = userModel.LastName,
             Role = userModel.RoleModel.RoleName,
-            ProfilePicture = userModel.ProfilePicture
+            ProfilePicture = userModel.ProfilePicture,
+            CreatedAt = userModel.CreatedAt,
         };
     }
-    
+
     public static UserModel ToUserModel(UserUpdateDto userDto)
     {
         return new UserModel()

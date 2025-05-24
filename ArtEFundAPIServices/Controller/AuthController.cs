@@ -209,12 +209,12 @@ public class AuthController : ControllerBase
             await _userInterface.UpdateUser(user);
 
             String emailPass = _configuration["EmailPass"];
-
+            
             if (emailPass == null)
             {
                 return BadRequest("Email password not set in configuration");
             }
-
+            
             var mail = new MailMessage("adarshakarki33@gmail.com", user.Email)
             {
                 Subject = "Reset Password",

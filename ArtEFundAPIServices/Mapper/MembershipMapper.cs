@@ -67,6 +67,8 @@ public static class MembershipMapper
             CreatorId = model.Membership.CreatorId,
             IsDeleted = model.Membership.IsDeleted,
             MembershipTier = model.Membership.MembershipTier,
+            ProfilePicture = model.User.ProfilePicture,
+            
         };
     }
 

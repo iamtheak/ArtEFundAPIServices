@@ -1,4 +1,5 @@
 ﻿using System.Security.Claims;
+using ArtEFundAPIServices.Attributes;
 using ArtEFundAPIServices.Data.Model;
 using ArtEFundAPIServices.DataAccess.Creator;
 using ArtEFundAPIServices.DataAccess.CreatorApiKey;
@@ -7,6 +8,7 @@ using ArtEFundAPIServices.DTO.Creator;
 using ArtEFundAPIServices.Mapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.IdentityModel.Tokens;
 
 namespace ArtEFundAPIServices.Controller;
 
@@ -39,6 +41,22 @@ public class CreatorController : ControllerBase
         catch (Exception e)
         {
             Console.Write(e);
+            return StatusCode(500, new { message = "Internal server error", error = e.Message });
+        }
+    }
+
+    [HttpGet("total")]
+    [Authorize]
+    [RoleCheck("admin")]
+    public async Task<ActionResult<int>> GetTotalCreators()
+    {
+        try
+        {
+            var totalCreators = await _creatorInterface.GetCreators();
+            return Ok(totalCreators.Count);
+        }
+        catch (Exception e)
+        {
             return StatusCode(500, new { message = "Internal server error", error = e.Message });
         }
     }
@@ -113,6 +131,12 @@ public class CreatorController : ControllerBase
             {
                 return NotFound(new { message = $"Creator with username '{username}' not found" });
             }
+
+            if (creator.ApiKey.EncryptedApiKey.IsNullOrEmpty())
+            {
+                return BadRequest(new { message = "Creator does not have an API key" });
+            }
+
 
             return Ok(CreatorMapper.ToCreatorViewDto(creator));
         }

@@ -18,4 +18,6 @@ public class UserViewDto
     public string Role { get; set; }
     
     public string? ProfilePicture { get; set; }
+    
+    public DateTime CreatedAt { get; set; }
 }

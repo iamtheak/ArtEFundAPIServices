@@ -13,6 +13,7 @@ public class EnrolledMembershipViewDto
     public bool IsActive { get; set; }
     public decimal PaidAmount { get; set; }
     public bool IsDeleted { get; set; }
-    
     public int MembershipTier { get; set; }
+
+    public string? ProfilePicture { get; set; }
 }

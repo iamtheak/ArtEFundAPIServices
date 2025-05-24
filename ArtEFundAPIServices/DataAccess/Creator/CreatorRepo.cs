@@ -31,6 +31,7 @@ public class CreatorRepo : ICreatorInterface
             .Include(cm => cm.ContentType)
             .Include(cm => cm.UserModel)
             .ThenInclude(um => um.RoleModel)
+            .Include(cm => cm.ApiKey)
             .FirstOrDefaultAsync(x => x.CreatorId == id);
         return creatorModel;
     }
@@ -78,6 +79,7 @@ public class CreatorRepo : ICreatorInterface
             .Include(c => c.UserModel)
             .Include(c => c.Memberships)
             .Include(c => c.Posts)
+            .Include(c => c.ApiKey)
             // Include the UserModel navigation property
             .FirstOrDefaultAsync(c => c.UserModel.UserName == userName);
     }

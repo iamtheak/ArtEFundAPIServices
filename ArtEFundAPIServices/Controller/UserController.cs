@@ -12,9 +12,11 @@ namespace ArtEFundAPIServices.Controller;
 [ApiController]
 [Route("/api/[controller]")]
 [Consumes("application/json")]
+[Authorize]
 public class UserController(IUserInterface _userInterface) : ControllerBase
 {
     [HttpGet]
+    [RoleCheck("admin")]
     public async Task<IActionResult> GetAllUsers()
     {
         var users = await _userInterface.GetAllUsers();
@@ -29,6 +31,29 @@ public class UserController(IUserInterface _userInterface) : ControllerBase
         return Ok(userViewDtos);
     }
 
+    [HttpGet("recent")]
+    [RoleCheck("admin")]
+    public async Task<IActionResult> GetRecentUsers()
+    {
+        var users = await _userInterface.GetAllUsers();
+        var recentUsers = users.OrderByDescending(u => u.CreatedAt).Take(10).ToList();
+        List<UserViewDto> userViewDtos = new List<UserViewDto>();
+        foreach (var user in recentUsers)
+        {
+            userViewDtos.Add(UserMapper.ToUserViewDto(user));
+        }
+
+        return Ok(userViewDtos);
+    }
+
+    [HttpGet("total")]
+    [RoleCheck("admin")]
+    public async Task<IActionResult> GetTotalUsers()
+    {
+        var totalUsers = await _userInterface.GetAllUsers();
+        return Ok(totalUsers.Count);
+    }
+    
     [HttpGet("{id}")]
     public async Task<IActionResult> GetUserById(int id)
     {
@@ -88,6 +113,24 @@ public class UserController(IUserInterface _userInterface) : ControllerBase
         if (user.UserType.UserTypeName != "google")
         {
             user.Email = userDto.Email;
+        }
+
+        if (user.Email != userDto.Email)
+        {
+            return BadRequest("Email not set in configuration");
+        }
+
+        var existingUser = await _userInterface.GetUserByUserName(userDto.UserName);
+
+        if (existingUser != null && existingUser.UserId != id)
+        {
+            return BadRequest("Username already exists.");
+        }
+
+        existingUser = await _userInterface.GetUserByEmail(userDto.Email);
+        if (existingUser != null && existingUser.UserId != id)
+        {
+            return BadRequest("Email already exists.");
         }
 
         user.UserName = userDto.UserName;

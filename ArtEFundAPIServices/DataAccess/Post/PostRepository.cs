@@ -213,6 +213,15 @@ public class PostRepository : IPostInterface
             .ToListAsync();
     }
 
+    public Task<List<PostModel>> GetTopPosts(int count)
+    {
+        return _context.Posts
+            .Include(p => p.Creator)
+            .ThenInclude(c => c.UserModel)
+            .OrderByDescending(p => p.Views)
+            .Take(count)
+            .ToListAsync();
+    }
 
     private bool PostExists(int id)
     {

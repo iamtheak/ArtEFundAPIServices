@@ -1,5 +1,6 @@
 ﻿using System.Net;
 using System.Text;
+using ArtEFundAPIServices.Attributes;
 using ArtEFundAPIServices.Data.Model;
 using ArtEFundAPIServices.DataAccess.Creator;
 using ArtEFundAPIServices.DataAccess.Donation;
@@ -7,6 +8,7 @@ using ArtEFundAPIServices.DataAccess.Payment;
 using ArtEFundAPIServices.DataAccess.User;
 using ArtEFundAPIServices.DTO;
 using ArtEFundAPIServices.DTO.Donation;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
 
@@ -20,15 +22,18 @@ public class DonationController : ControllerBase
     private readonly ICreatorInterface _creatorRepository;
     private readonly IUserInterface _userRepository;
     private readonly IPaymentInterface _paymentRepository;
+    private readonly IEncryptionService _encryptionService;
 
     public DonationController(IDonationInterface donationRepository, ICreatorInterface creatorRepository,
-        IUserInterface userRepository, IPaymentInterface paymentRepository)
+        IUserInterface userRepository, IPaymentInterface paymentRepository, IEncryptionService encryptionService)
     {
         _donationRepository = donationRepository;
         _creatorRepository = creatorRepository;
         _userRepository = userRepository;
         _paymentRepository = paymentRepository;
+        _encryptionService = encryptionService;
     }
+
 
     [HttpGet("{id}")]
     public async Task<ActionResult<DonationViewDto>> GetDonationById(int id)
@@ -61,6 +66,18 @@ public class DonationController : ControllerBase
         }
 
         return Ok(donationViewDto);
+    }
+
+
+    [HttpGet("total")]
+    [Authorize]
+    [RoleCheck("admin")]
+    public async Task<ActionResult<int>> GetTotalDonations()
+    {
+        var donations = await _donationRepository.GetDonationsAsync();
+        var total = donations.Sum(d => d.DonationAmount);
+
+        return Ok(total);
     }
 
     [HttpGet("user/{userId}")]
@@ -146,7 +163,16 @@ public class DonationController : ControllerBase
             creatorId = donationDto.CreatorId,
             donationType = "donation",
             nanoId = Guid.NewGuid().ToString(),
+            amount = donationDto.DonationAmount
         });
+
+
+        var creator = await _creatorRepository.GetCreatorById(donationDto.CreatorId);
+
+        if (creator == null)
+        {
+            return BadRequest("This creator does not exist");
+        }
 
         // Setup default customer info
         var customerName = "Anonymous";
@@ -188,7 +214,8 @@ public class DonationController : ControllerBase
         var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
 
         var client = new HttpClient();
-        client.DefaultRequestHeaders.Add("Authorization", "key 98fed20dac3e4f549ee853503a124c0b");
+        var creatorApiKey = _encryptionService.Decrypt(creator.ApiKey.EncryptedApiKey);
+        client.DefaultRequestHeaders.Add("Authorization", $"key {creatorApiKey}");
 
         try
         {
@@ -273,8 +300,6 @@ public class DonationController : ControllerBase
             BadRequest("This user does not exist");
         }
 
-        // Get the amount from Khalti response
-        decimal amount = (decimal)khaltiResponse.TotalAmount / 100m; // Convert paisa to rupees
 
         // Create payment record
         var payment = new PaymentModel
@@ -282,18 +307,24 @@ public class DonationController : ControllerBase
             KhaltiPaymentId = donationDto.KhaltiPaymentId,
             PaymentStatus = khaltiResponse.Status.ToString(),
             PaymentDate = DateTime.Now,
-            Amount = (decimal)khaltiResponse.TotalAmount // Store in paisa for accuracy
+            Amount = donationDto.Amount * 100 // Store in paisa for accuracy
         };
 
         var createdPayment = await _paymentRepository.CreatePayment(payment);
 
+
+        if (donationDto.Message == "No message")
+        {
+            donationDto.Message = null;
+        }
+
         // Create donation with payment info
         var donation = new DonationModel
         {
-            DonationAmount = amount,
+            DonationAmount = donationDto.Amount,
             DonationMessage = donationDto.Message,
             CreatorId = donationDto.CreatorId,
-            UserId = donationDto.UserId > 0 ? donationDto.CreatorId : null,
+            UserId = donationDto.UserId > 0 ? donationDto.UserId : null,
             PaymentId = createdPayment.PaymentId
         };
 

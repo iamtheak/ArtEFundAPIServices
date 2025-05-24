@@ -22,4 +22,5 @@ public interface IPostInterface
     Task<PostCommentModel> CreatePostComment(PostCommentModel postComment);
     Task<PostCommentModel?> UpdatePostComment(PostCommentModel postComment);
     Task<bool> DeletePostComment(int commentId);
+    Task<List<PostModel>> GetTopPosts(int count);
 }

@@ -1,4 +1,5 @@
-﻿using ArtEFundAPIServices.DataAccess.Creator;
+﻿using ArtEFundAPIServices.Attributes;
+using ArtEFundAPIServices.DataAccess.Creator;
 using ArtEFundAPIServices.DataAccess.Donation;
 using ArtEFundAPIServices.DataAccess.Membership;
 using ArtEFundAPIServices.DataAccess.User;
@@ -38,7 +39,7 @@ public class HomeController : ControllerBase
             return NotFound("Creator not found.");
         }
 
-        var memberships = await _membershipInterface.GetMembershipsByCreatorId(creatorId);
+        var memberships = await _membershipInterface.GetEnrolledMembershipsByCreatorId(creatorId);
         var totalMembers = memberships.Count;
 
         return Ok(totalMembers);
@@ -73,6 +74,51 @@ public class HomeController : ControllerBase
         int profileViews = creator.ProfileVisits;
 
         return Ok(profileViews);
+    }
+
+    [HttpGet("admin/daily-donations")]
+    [RoleCheck("admin")]
+    public async Task<IActionResult> GetDailyDonationsAdmin()
+    {
+        var donations = await _donationInterface.GetDonationsAsync();
+
+        var dailyDonations = donations
+            .GroupBy(d => d.DonationDate.Date)
+            .Select(g => new DailyDonationDto
+            {
+                Date = DateOnly.FromDateTime(g.Key),
+                Donations = g.Sum(d => d.DonationAmount)
+            })
+            .ToList();
+
+        return Ok(dailyDonations);
+    }
+
+    [HttpGet("admin/top-earners")]
+    [RoleCheck("admin")]
+    public async Task<IActionResult> GetTopEarners()
+    {
+        var creators = await _creatorInterface.GetCreators();
+
+         List<TopEarnerDto> topEarners = new List<TopEarnerDto>();
+
+        foreach (var creator in creators)
+        {
+            var donations = await _donationInterface.GetDonationsByCreatorId(creator.CreatorId);
+            var totalDonations = donations.Sum(d => d.DonationAmount);
+
+            topEarners.Add(new TopEarnerDto
+            {
+                Name = $"{creator.UserModel.FirstName} {creator.UserModel.LastName} ",
+                TotalEarnings = totalDonations,
+                ProfilePicture = creator.UserModel.ProfilePicture,
+                CreatorId = creator.CreatorId
+            });
+        }
+
+        topEarners = topEarners.OrderByDescending(te => te.TotalEarnings).Take(6).ToList();
+
+        return Ok(topEarners);
     }
 
     [HttpGet]

@@ -45,6 +45,26 @@ public class PostController : ControllerBase
         return Ok(postDto);
     }
 
+    [HttpGet("top")]
+    public async Task<ActionResult<List<PostViewDto>>> GetTopPosts(int count = 10)
+    {
+        var posts = await _postRepository.GetTopPosts(count);
+        if (posts == null || posts.Count == 0)
+        {
+            return NotFound();
+        }
+
+        var postDtos = new List<PostViewDto>();
+        foreach (var post in posts)
+        {
+            var likes = await _postRepository.GetPostLikesByPostId(post.PostId);
+            var comments = await _postRepository.GetPostCommentsByPostId(post.PostId);
+            postDtos.Add(PostMapper.ToViewDto(post, likes.Count, comments.Count));
+        }
+
+        return Ok(postDtos);
+    }
+
     // GET: api/Post/slug/{slug}
     [HttpGet("slug/{slug}")]
     public async Task<ActionResult<PostViewDto>> GetPostBySlug(string slug)
@@ -69,6 +89,7 @@ public class PostController : ControllerBase
 
     // GET: api/Post/creator/{creatorId}
     [HttpGet("creator/{creatorId:int}")]
+    [Authorize]
     public async Task<ActionResult<List<PostViewDto>>> GetPostsByCreatorId(int creatorId)
     {
         var posts = await _postRepository.GetPostsByCreatorId(creatorId);
@@ -155,13 +176,32 @@ public class PostController : ControllerBase
         return Ok(updatedPostDto);
     }
 
+    [HttpPost("view")]
+    public async Task<ActionResult<PostViewDto>> ViewPost(int postId)
+    {
+        var post = await _postRepository.GetPost(postId);
+        if (post == null)
+        {
+            return NotFound();
+        }
+
+        post.Views += 1;
+        var updatedPost = await _postRepository.UpdatePost(post);
+        if (updatedPost == null)
+        {
+            return NotFound();
+        }
+
+        return Ok(true);
+    }
+
     // DELETE: api/Post/{id}
     [HttpDelete("{id:int}")]
     [Authorize]
     [RoleCheck("creator")]
     public async Task<ActionResult> DeletePost(int id)
     {
-        var userIdClaim = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (userIdClaim == null || !int.TryParse(userIdClaim, out int userId))
         {
             return Unauthorized();
@@ -190,13 +230,18 @@ public class PostController : ControllerBase
         return NoContent();
     }
 
-    [HttpGet("/post/{postId:int}/view/{userId:int}")]
+    [HttpGet("{postId:int}/view/{userId:int}")]
     public async Task<ActionResult<bool>> CanUserViewPost(int postId, int userId)
     {
         var post = await _postRepository.GetPost(postId);
         if (post == null)
         {
             return Ok(false);
+        }
+
+        if (!post.IsMembersOnly)
+        {
+            return Ok(true);
         }
 
         var user = await _userRepository.GetUserById(userId);
@@ -206,6 +251,11 @@ public class PostController : ControllerBase
         }
 
         if (post.Creator.UserModel.UserId == user.UserId)
+        {
+            return Ok(true);
+        }
+
+        if (user.RoleModel.RoleName == "admin")
         {
             return Ok(true);
         }

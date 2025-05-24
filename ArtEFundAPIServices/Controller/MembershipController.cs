@@ -69,7 +69,9 @@ public class MembershipController : ControllerBase
             return NotFound();
         }
 
-        var growth = memberships.GroupBy(em => em.EnrolledDate)
+        var growth = memberships
+            .GroupBy(em => em.EnrolledDate.Date)
+            .OrderBy(g => g.Key)
             .Select(g => new MembershipGrowthDto()
             {
                 Date = g.Key,
@@ -356,7 +358,7 @@ public class MembershipController : ControllerBase
         var paymentModel = new PaymentModel
         {
             KhaltiPaymentId = membershipVerifyDto.KhaltiPaymentId,
-            Amount = khaltiResponse.TotalAmount,
+            Amount = membership.MembershipAmount  * 100,
             PaymentDate = DateTime.Now,
             PaymentStatus = "Completed"
         };
@@ -454,11 +456,11 @@ public class MembershipController : ControllerBase
     }
 
 
-    [HttpPost("end")]
-    public async Task<ActionResult> EndMembership([FromBody] int enrolledMembershipiD)
+    [HttpDelete("enrolled/end")]
+    public async Task<ActionResult> EndMembership(int enrolledMembershipId)
     {
         var enrolledMembership =
-            await _membershipRepository.GetEnrolledMembershipById(enrolledMembershipiD);
+            await _membershipRepository.GetEnrolledMembershipById(enrolledMembershipId);
         if (enrolledMembership == null)
         {
             return NotFound();

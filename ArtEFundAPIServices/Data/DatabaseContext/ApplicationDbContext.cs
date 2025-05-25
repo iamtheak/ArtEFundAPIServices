@@ -172,6 +172,13 @@ public class ApplicationDbContext : DbContext
             new UserType { UserTypeId = 2, UserTypeName = "google" }
         );
 
+        modelBuilder.Entity<ContentTypeModel>().HasData(
+            new ContentTypeModel { ContentTypeId = 1, ContentTypeName = "Infotainment" },
+            new ContentTypeModel { ContentTypeId = 2, ContentTypeName = "Comedy" },
+            new ContentTypeModel { ContentTypeId = 3, ContentTypeName = "Music" }
+        );
+
+
         modelBuilder.Entity<DonationModel>()
             .Property(d => d.DonationAmount)
             .HasPrecision(18, 2); // 18 digits total, 2 decimal places

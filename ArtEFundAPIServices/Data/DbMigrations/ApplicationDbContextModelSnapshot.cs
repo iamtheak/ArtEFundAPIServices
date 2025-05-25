@@ -38,6 +38,23 @@ namespace ArtEFundAPIServices.Data.DbMigrations
                     b.HasKey("ContentTypeId");
 
                     b.ToTable("ContentTypes");
+
+                    b.HasData(
+                        new
+                        {
+                            ContentTypeId = 1,
+                            ContentTypeName = "Infotainment"
+                        },
+                        new
+                        {
+                            ContentTypeId = 2,
+                            ContentTypeName = "Comedy"
+                        },
+                        new
+                        {
+                            ContentTypeId = 3,
+                            ContentTypeName = "Music"
+                        });
                 });
 
             modelBuilder.Entity("ArtEFundAPIServices.Data.Model.CreatorApiKeyModel", b =>

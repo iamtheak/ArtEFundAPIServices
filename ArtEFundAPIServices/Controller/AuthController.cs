@@ -118,7 +118,7 @@ public class AuthController : ControllerBase
             user.VerificationTokenExpiry = DateTime.Now.AddHours(1);
             await _userInterface.UpdateUser(user);
 
-            String emailPass = _configuration["EmailPass"];
+            String emailPass = _configuration["Gmail:Password"];
 
             if (emailPass == null)
             {
@@ -136,7 +136,7 @@ public class AuthController : ControllerBase
             using var smtpClient = new SmtpClient("smtp.gmail.com")
             {
                 Port = 587,
-                Credentials = new NetworkCredential("adarshakarki33@gmail.com", "ozra tfaa xpcq adjt"),
+                Credentials = new NetworkCredential("adarshakarki33@gmail.com", password: emailPass),
                 EnableSsl = true,
             };
 
@@ -208,13 +208,13 @@ public class AuthController : ControllerBase
 
             await _userInterface.UpdateUser(user);
 
-            String emailPass = _configuration["EmailPass"];
-            
+            String emailPass = _configuration["Gmail:Password"];
+
             if (emailPass == null)
             {
                 return BadRequest("Email password not set in configuration");
             }
-            
+
             var mail = new MailMessage("adarshakarki33@gmail.com", user.Email)
             {
                 Subject = "Reset Password",
@@ -331,7 +331,7 @@ public class AuthController : ControllerBase
                 Message = "User registered successfully"
             };
 
-            String emailPass = _configuration["EmailPass"];
+            String emailPass = _configuration["Gmail:Password"];
 
             if (emailPass == null)
             {
@@ -349,7 +349,7 @@ public class AuthController : ControllerBase
             using var smtpClient = new SmtpClient("smtp.gmail.com")
             {
                 Port = 587,
-                Credentials = new NetworkCredential("adarshakarki33@gmail.com", "ozra tfaa xpcq adjt"),
+                Credentials = new NetworkCredential("adarshakarki33@gmail.com", password: emailPass),
                 EnableSsl = true,
             };
 

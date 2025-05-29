@@ -154,6 +154,12 @@ public class DonationController : ControllerBase
     [HttpPost("khalti/initiate")]
     public async Task<ActionResult<KhaltiDto>> KhaltiDonationInitiate(KhaltiDonationInitiateDto donationDto)
     {
+        
+        
+        if(donationDto.DonationAmount > 100000)
+        {
+            return BadRequest("Donation amount cannot exceed 1,00,000");
+        }
         var url = "https://dev.khalti.com/api/v2/epayment/initiate/";
 
         // Create purchase order ID with metadata

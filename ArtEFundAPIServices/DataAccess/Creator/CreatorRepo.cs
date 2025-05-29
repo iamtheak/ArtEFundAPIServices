@@ -20,6 +20,7 @@ public class CreatorRepo : ICreatorInterface
                 .Include(c => c.ContentType)
                 .Include(c => c.UserModel)
                 .ThenInclude(c => c.RoleModel)
+                .Include(c => c.ApiKey)
                 .ToListAsync();
 
         return creators;

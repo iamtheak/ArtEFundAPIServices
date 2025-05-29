@@ -28,13 +28,19 @@ public class CreatorController : ControllerBase
         _creatorApiKeyInterface = creatorApiKeyInterface;
     }
 
-    // GET api/creators
+// GET api/creators
     [HttpGet]
     public async Task<ActionResult<IEnumerable<CreatorViewDto>>> GetCreators()
     {
         try
         {
             var creators = await _creatorInterface.GetCreators();
+            // Filter to only include creators with an API key
+            creators = creators.Where(creator =>
+                creator.ApiKey != null &&
+                !string.IsNullOrEmpty(creator.ApiKey.EncryptedApiKey)
+            ).ToList();
+
             var creatorDtos = creators.Select(CreatorMapper.ToCreatorViewDto).ToList();
             return Ok(creatorDtos);
         }
@@ -44,6 +50,7 @@ public class CreatorController : ControllerBase
             return StatusCode(500, new { message = "Internal server error", error = e.Message });
         }
     }
+    
 
     [HttpGet("total")]
     [Authorize]

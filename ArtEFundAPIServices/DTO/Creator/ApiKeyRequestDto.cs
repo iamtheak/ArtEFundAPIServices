@@ -4,5 +4,6 @@ namespace ArtEFundAPIServices.DTO.Creator;
 
 public class ApiKeyRequestDto
 {
-    [Required] public string ApiKey { get; set; }
+    [Required] 
+    public string ApiKey { get; set; }
 }
